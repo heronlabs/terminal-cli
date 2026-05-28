@@ -51,7 +51,6 @@ export default defineConfig([
       'node_modules/',
       'bin/',
       'coverage/',
-      'tests/.coverage/',
       'reports/',
       '**/.stryker-tmp/**',
       '**/reports/mutation/**',

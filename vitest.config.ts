@@ -27,17 +27,7 @@ export default defineConfig({
       reportsDirectory: 'coverage',
       reporter: ['text', 'lcov', 'html'],
       include: ['src/**/*.{ts,tsx}'],
-      exclude: [
-        '**/lambda*.ts',
-        '**/i18n*.ts',
-        '**/main.ts',
-        '**/*.d.ts',
-        '**/*factory.ts',
-        '**/orm/',
-        '**/dtos/',
-        '**/requests/',
-        '**/types/',
-      ],
+      exclude: ['**/main.ts', '**/*factory.ts'],
       enabled: true,
       thresholds: {
         lines: 100,

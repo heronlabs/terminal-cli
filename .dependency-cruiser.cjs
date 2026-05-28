@@ -19,7 +19,8 @@ module.exports = {
     {
       name: 'no-circular',
       severity: 'error',
-      comment: 'Circular dependencies make code unpredictable and hard to test.',
+      comment:
+        'Circular dependencies make code unpredictable and hard to test.',
       from: {},
       to: {circular: true},
     },
