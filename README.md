@@ -1,6 +1,6 @@
 # 🪶 terminal-cli — Heron CLI (`hcli`)
 
-[![CI](https://github.com/heronlabs/terminal-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/heronlabs/terminal-cli/actions/workflows/ci.yml)
+[![CI](https://github.com/heronlabs/terminal-cli/actions/workflows/ci-cli.yml/badge.svg)](https://github.com/heronlabs/terminal-cli/actions/workflows/ci-cli.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.x-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.x-e0234e.svg)](https://nestjs.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)

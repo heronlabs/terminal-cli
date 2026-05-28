@@ -61,7 +61,7 @@ Env vars (see `.env.example`): `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`,
 
 ## CI/CD
 
-### CI (`.github/workflows/ci.yml`)
+### CI (`.github/workflows/ci-cli.yml`)
 
 Triggers on PR to `main`. Three jobs:
 
