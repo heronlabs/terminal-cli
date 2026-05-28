@@ -1,0 +1,74 @@
+{
+  "bin": {
+    "hcli": "bin/src/main.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1045.0",
+    "@nestjs/common": "^11.1.18",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.18",
+    "luxon": "^3.7.2",
+    "nest-commander": "^3.20.1",
+    "nestjs-pino": "^4.6.1",
+    "pino-http": "^10.5.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "description": "Heron CLI — database backup & rollup (PostgreSQL/MySQL → S3)",
+  "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "@nestjs/cli": "^11.0.21",
+    "@nestjs/testing": "^11.1.18",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/typescript-checker": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^22.15.30",
+    "@vitest/coverage-v8": "^4.1.6",
+    "dependency-cruiser": "^17.4.2",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-jsonc": "^3.1.2",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-yml": "^3.3.2",
+    "gts": "^7.0.0",
+    "jiti": "^2.7.0",
+    "moq.ts": "^10.0.8",
+    "nest-commander-testing": "^3.5.1",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.60.0",
+    "unplugin-swc": "^1.5.9",
+    "vitest": "^4.1.6"
+  },
+  "engineStrict": true,
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10.29.3"
+  },
+  "license": "MIT",
+  "name": "@heronlabs/terminal-cli",
+  "packageManager": "pnpm@10.33.2",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@swc/core",
+      "esbuild"
+    ],
+    "overrides": {
+      "qs@>=6.7.0 <=6.14.1": ">=6.14.2",
+      "tmp@<0.2.6": ">=0.2.6"
+    }
+  },
+  "prettier": "gts/.prettierrc.json",
+  "private": true,
+  "scripts": {
+    "build": "nest build --path tsconfig.bin.json",
+    "dep:cruise": "depcruise src --config .dependency-cruiser.cjs",
+    "lint:check": "gts lint && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --no-error-on-unmatched-pattern",
+    "lint:fix": "gts fix && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --fix --no-error-on-unmatched-pattern",
+    "start": "dotenv -- node bin/src/main.js",
+    "test:mutation": "stryker run stryker.conf.json",
+    "test:unit": "VITE_CJS_IGNORE_WARNING=true vitest run"
+  },
+  "version": "0.0.1"
+}

@@ -1,0 +1,3 @@
+# Pin Node version for consistent installs (aligns with .nvmrc)
+# https://pnpm.io/npmrc#use-node-version
+use-node-version=22.20.0

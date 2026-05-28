@@ -1,0 +1,120 @@
+name: '[ CI ] | Terminal CLI'
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: 'Install & Build'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - id: cache-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'src/**/*.ts', 'tsconfig*.json', 'nest-cli.json') }}
+
+      - if: steps.cache-modules.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - if: steps.cache-build.outputs.cache-hit != 'true'
+        run: pnpm build
+
+  audit:
+    needs: setup
+    name: 'Audit & Supply Chain'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: bin
+          key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'src/**/*.ts', 'tsconfig*.json', 'nest-cli.json') }}
+
+      - run: pnpm dep:cruise
+
+      - run: pnpm audit --prod --audit-level=high
+
+  lint-test:
+    needs: setup
+    name: 'Lint & Test'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: bin
+          key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'src/**/*.ts', 'tsconfig*.json', 'nest-cli.json') }}
+
+      - run: pnpm lint:check
+
+      - run: pnpm test:unit
+
+      - if: always()
+        name: Upload unit-test coverage
+        uses: actions/upload-artifact@v5
+        with:
+          name: unit-test-coverage
+          path: coverage/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - run: pnpm test:mutation
+
+      - if: always()
+        name: Upload mutation reports
+        uses: actions/upload-artifact@v5
+        with:
+          name: mutation-reports
+          path: reports/mutation/
+          retention-days: 14
+          if-no-files-found: warn

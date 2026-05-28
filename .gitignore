@@ -1,0 +1,78 @@
+# Dependencies (Node)
+# https://docs.npmjs.com/cli/v10/configuring-npm/folders#node-modules
+node_modules
+.pnp
+.pnp.js
+
+# Local env files (keep .env.example tracked)
+# https://github.com/github/gitignore/blob/main/Node.gitignore
+.env
+.env.*
+!.env.example
+
+# Testing (Vitest)
+coverage
+tests/.coverage
+*.lcov
+.nyc_output
+
+# Vite (Vitest uses Vite; cache and timestamp files)
+# https://vitejs.dev/guide/dep-pre-bundling.html
+.vite/
+vite.config.*.timestamp-*
+
+# Debug and runtime logs
+# https://nodejs.org/api/report.html
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Misc (OS, keys, npm pack)
+.DS_Store
+*.pem
+*.tgz
+
+# TypeScript / build info
+# https://www.typescriptlang.org/tsconfig#tsbuildinfo
+bin/
+*.tsconfig.bin.tsbuildinfo
+tsconfig.bin.tsbuildinfo
+*.tsbuildinfo
+
+# IDE / Editor
+# https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+.idea
+.eslintcache
+.stylelintcache
+
+# Claude Code local settings (user-specific, never commit)
+.claude/settings.local.json
+.claude/*.local.md
+
+# Claude Code runtime lock files
+.claude/scheduled_tasks.lock
+
+# pnpm
+# https://pnpm.io/npmrc#store-dir
+.pnpm-store/
+.pnpm-debug.log*
+.node_history
+.node_repl_history
+.npm
+
+# Legacy / coverage tooling
+lib-cov
+
+# Claude
+.superpowers
+.worktrees/
+
+# Stryker Mutation
+.stryker-tmp
+reports

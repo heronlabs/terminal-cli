@@ -1,0 +1,102 @@
+services:
+  cli-psql-database:
+    container_name: cli-psql-database
+    platform: linux/amd64
+    restart: unless-stopped
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - psql-data:/var/lib/postgresql/data
+    ports:
+      - '5434:5432'
+    networks:
+      - cli-db-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER} -d ${DB_NAME}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cli-psql:
+    container_name: cli-psql
+    platform: linux/amd64
+    restart: unless-stopped
+    build:
+      context: .
+    depends_on:
+      cli-psql-database:
+        condition: service_healthy
+    environment:
+      DB_HOST: cli-psql-database
+      DB_PORT: '5432'
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+    command: ['sleep', 'infinity']
+    networks:
+      - cli-db-network
+
+  cli-mysql-database:
+    container_name: cli-mysql-database
+    platform: linux/amd64
+    restart: unless-stopped
+    image: mysql:8.0
+    environment:
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - '3307:3306'
+    networks:
+      - cli-db-network
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD:-root} || exit 1',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cli-mysql:
+    container_name: cli-mysql
+    platform: linux/amd64
+    restart: unless-stopped
+    build:
+      context: .
+    depends_on:
+      cli-mysql-database:
+        condition: service_healthy
+    environment:
+      DB_HOST: cli-mysql-database
+      DB_PORT: '3306'
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+    command: ['sleep', 'infinity']
+    networks:
+      - cli-db-network
+
+volumes:
+  psql-data: {}
+  mysql-data: {}
+
+networks:
+  cli-db-network:
+    name: cli-db-network
+    driver: bridge
