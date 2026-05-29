@@ -37,7 +37,6 @@
     "nest-commander-testing": "^3.5.1",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.60.0",
-    "unplugin-swc": "^1.5.9",
     "vitest": "^4.1.6"
   },
   "engineStrict": true,
@@ -51,11 +50,9 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@nestjs/core",
-      "@swc/core",
-      "esbuild"
+      "@swc/core"
     ],
     "overrides": {
-      "qs@>=6.7.0 <=6.14.1": ">=6.14.2",
       "tmp@<0.2.6": ">=0.2.6"
     }
   },
@@ -68,7 +65,7 @@
     "lint:fix": "gts fix && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --fix --no-error-on-unmatched-pattern",
     "start": "dotenv -- node bin/src/main.js",
     "test:mutation": "stryker run stryker.conf.json",
-    "test:unit": "VITE_CJS_IGNORE_WARNING=true vitest run"
+    "test:unit": "vitest run"
   },
-  "version": "0.0.1"
+  "version": "0.0.0"
 }
