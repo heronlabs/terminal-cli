@@ -52,7 +52,7 @@ Env vars (see `.env.example`): `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`,
 
 | Detail | Value |
 |---|---|
-| Framework | Vitest 4.x (`vitest.config.ts`, SWC transform for NestJS decorators) |
+| Framework | Vitest 4.x (`vitest.config.ts`; default transform handles NestJS decorators) |
 | Test location | `tests/specs/` (mirrors `src/`) |
 | Shared mocks | `tests/__mocks__/create-testing-module.ts` (moq.ts + vitest) |
 | Libraries | `@faker-js/faker`, `moq.ts`, `nest-commander-testing` |
