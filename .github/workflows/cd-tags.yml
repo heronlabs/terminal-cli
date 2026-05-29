@@ -37,3 +37,34 @@ jobs:
         with:
           github-token: ${{ secrets.PAT }}
           spec: ${{ inputs.spec }}
+
+  publish-npm:
+    needs: setup-tags
+    name: 'Publish to npm'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.setup-tags.outputs.tag }}
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: Set package version to created tag
+        run: npm pkg set version="${TAG#v}"
+        env:
+          TAG: ${{ needs.setup-tags.outputs.tag }}
+
+      - name: Publish to public npm registry
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -44,6 +44,9 @@
     "node": ">=22",
     "pnpm": ">=10.29.3"
   },
+  "files": [
+    "bin"
+  ],
   "license": "MIT",
   "name": "@heronlabs/terminal-cli",
   "packageManager": "pnpm@10.33.2",
@@ -57,7 +60,9 @@
     }
   },
   "prettier": "gts/.prettierrc.json",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "nest build --path tsconfig.bin.json",
     "dep:cruise": "depcruise src --config .dependency-cruiser.cjs",
