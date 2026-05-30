@@ -11,12 +11,21 @@ export class MysqlRollupService extends RollupService {
     const {host, port, name, user, password} = this.environmentService.database;
 
     try {
+      // Command is a constant: every dynamic value flows through `env` and is
+      // referenced as a quoted shell variable. Bash does not re-evaluate the
+      // contents of an expanded variable, so a malicious filename or db param
+      // (e.g. "$(rm -rf /)") is treated literally — no shell injection.
       execSync(
-        `set -o pipefail; gunzip -c "${backupFileName}" | mariadb -u "${user}" -h "${host}" -P "${port}" "${name}"`,
+        'set -o pipefail; gunzip -c "$BACKUP_FILE" | mariadb -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME"',
         {
           env: {
             ...process.env,
+            DB_USER: user,
+            DB_HOST: host,
+            DB_PORT: port,
+            DB_NAME: name,
             MYSQL_PWD: password,
+            BACKUP_FILE: backupFileName,
           },
           stdio: ['inherit', 'pipe', 'inherit'],
           shell: '/bin/bash',

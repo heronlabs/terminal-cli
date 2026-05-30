@@ -1,4 +1,14 @@
 {
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "inlineSourceMap": false,
+    "inlineSources": false,
+    "removeComments": true,
+    "sourceMap": false
+  },
   "exclude": ["node_modules", "tests", "bin", "*.ts"],
   "extends": "./tsconfig.json"
 }

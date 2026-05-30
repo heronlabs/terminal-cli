@@ -122,8 +122,10 @@ describe('Given a CLI command', () => {
       });
 
       expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining(`> "${filename}"`),
-        expect.anything(),
+        expect.any(String),
+        expect.objectContaining({
+          env: expect.objectContaining({BACKUP_FILE: filename}),
+        }),
       );
     });
 

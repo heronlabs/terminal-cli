@@ -16,17 +16,23 @@ export class PsqlBackupService extends BackupService {
     const backupFileName = filename ?? `${name}-${timestamp}.sql.gz`;
 
     try {
-      execSync(
-        `set -o pipefail; pg_dump -U "${user}" -h "${host}" -p "${port}" -d "${name}" | gzip > "${backupFileName}"`,
-        {
-          env: {
-            ...process.env,
-            PGPASSWORD: password,
-          },
-          stdio: ['inherit', 'pipe', 'inherit'],
-          shell: '/bin/bash',
+      // Command is a constant: every dynamic value flows through `env` and is
+      // referenced as a quoted shell variable. Bash does not re-evaluate the
+      // contents of an expanded variable, so a malicious filename or db param
+      // (e.g. "$(rm -rf /)") is treated literally — no shell injection.
+      execSync('set -o pipefail; pg_dump | gzip > "$BACKUP_FILE"', {
+        env: {
+          ...process.env,
+          PGHOST: host,
+          PGPORT: port,
+          PGDATABASE: name,
+          PGUSER: user,
+          PGPASSWORD: password,
+          BACKUP_FILE: backupFileName,
         },
-      );
+        stdio: ['inherit', 'pipe', 'inherit'],
+        shell: '/bin/bash',
+      });
 
       this.logger.log(
         `Backup PostgreSQL database successfully! Filename: ${backupFileName}`,
