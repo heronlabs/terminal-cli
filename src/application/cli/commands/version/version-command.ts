@@ -7,7 +7,7 @@ import {Command, CommandRunner} from 'nest-commander';
 @Command({name: 'version', description: 'Print current version'})
 export class VersionCommand extends CommandRunner {
   public async run(): Promise<void> {
-    const path = join(process.cwd(), 'package.json');
+    const path = join(__dirname, '../../../../../../package.json');
 
     const {version} = JSON.parse(readFileSync(path, 'utf-8')) as {
       version: string;

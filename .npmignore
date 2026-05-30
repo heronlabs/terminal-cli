@@ -1,0 +1,6 @@
+# The "files" field in package.json already whitelists bin/ as the only
+# published content. These patterns are defense-in-depth: even if a source map,
+# declaration, or build-info file is ever emitted into bin/, it must never ship.
+*.map
+*.d.ts
+*.tsbuildinfo

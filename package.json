@@ -1,6 +1,10 @@
 {
+  "author": "Heron Labs",
   "bin": {
     "hcli": "bin/src/main.js"
+  },
+  "bugs": {
+    "url": "https://github.com/heronlabs/terminal-cli/issues"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",
@@ -44,6 +48,20 @@
     "node": ">=22",
     "pnpm": ">=10.29.3"
   },
+  "files": [
+    "bin"
+  ],
+  "homepage": "https://github.com/heronlabs/terminal-cli#readme",
+  "keywords": [
+    "cli",
+    "backup",
+    "rollup",
+    "postgresql",
+    "mysql",
+    "s3",
+    "database",
+    "nestjs"
+  ],
   "license": "MIT",
   "name": "@heronlabs/terminal-cli",
   "packageManager": "pnpm@10.33.2",
@@ -57,12 +75,19 @@
     }
   },
   "prettier": "gts/.prettierrc.json",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heronlabs/terminal-cli.git"
+  },
   "scripts": {
     "build": "nest build --path tsconfig.bin.json",
     "dep:cruise": "depcruise src --config .dependency-cruiser.cjs",
     "lint:check": "gts lint && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --no-error-on-unmatched-pattern",
     "lint:fix": "gts fix && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --fix --no-error-on-unmatched-pattern",
+    "prepublishOnly": "pnpm build",
     "start": "dotenv -- node bin/src/main.js",
     "test:mutation": "stryker run stryker.conf.json",
     "test:unit": "vitest run"

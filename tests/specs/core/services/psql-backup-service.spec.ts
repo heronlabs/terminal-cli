@@ -22,7 +22,7 @@ describe('Given a service', () => {
   });
 
   describe('Given psql backup', () => {
-    it('Should call execSync with the exact pg_dump shell command', async () => {
+    it('Should call execSync with a constant pg_dump command and pass all dynamic values via env', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -30,12 +30,35 @@ describe('Given a service', () => {
       await service.run(true, filename);
 
       expect(execSync).toHaveBeenCalledWith(
-        `set -o pipefail; pg_dump -U "DB_USER" -h "DB_HOST" -p "DB_PORT" -d "DB_NAME" | gzip > "${filename}"`,
+        'set -o pipefail; pg_dump | gzip > "$BACKUP_FILE"',
         {
-          env: {...process.env, PGPASSWORD: 'DB_PASSWORD'},
+          env: {
+            ...process.env,
+            PGHOST: 'DB_HOST',
+            PGPORT: 'DB_PORT',
+            PGDATABASE: 'DB_NAME',
+            PGUSER: 'DB_USER',
+            PGPASSWORD: 'DB_PASSWORD',
+            BACKUP_FILE: filename,
+          },
           stdio: ['inherit', 'pipe', 'inherit'],
           shell: '/bin/bash',
         },
+      );
+    });
+
+    it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
+      const malicious = '$(touch /tmp/pwned).sql.gz';
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true, malicious);
+
+      expect(execSync).toHaveBeenCalledWith(
+        'set -o pipefail; pg_dump | gzip > "$BACKUP_FILE"',
+        expect.objectContaining({
+          env: expect.objectContaining({BACKUP_FILE: malicious}),
+        }),
       );
     });
 

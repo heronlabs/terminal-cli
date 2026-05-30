@@ -22,7 +22,7 @@ describe('Given a service', () => {
   });
 
   describe('Given mysql backup', () => {
-    it('Should call execSync with the exact mariadb-dump shell command', async () => {
+    it('Should call execSync with a constant mariadb-dump command and pass all dynamic values via env', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -30,12 +30,35 @@ describe('Given a service', () => {
       await service.run(true, filename);
 
       expect(execSync).toHaveBeenCalledWith(
-        `set -o pipefail; mariadb-dump -u "DB_USER" -h "DB_HOST" -P "DB_PORT" "DB_NAME" | gzip > "${filename}"`,
+        'set -o pipefail; mariadb-dump -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" | gzip > "$BACKUP_FILE"',
         {
-          env: {...process.env, MYSQL_PWD: 'DB_PASSWORD'},
+          env: {
+            ...process.env,
+            DB_USER: 'DB_USER',
+            DB_HOST: 'DB_HOST',
+            DB_PORT: 'DB_PORT',
+            DB_NAME: 'DB_NAME',
+            MYSQL_PWD: 'DB_PASSWORD',
+            BACKUP_FILE: filename,
+          },
           stdio: ['inherit', 'pipe', 'inherit'],
           shell: '/bin/bash',
         },
+      );
+    });
+
+    it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
+      const malicious = '$(touch /tmp/pwned).sql.gz';
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true, malicious);
+
+      expect(execSync).toHaveBeenCalledWith(
+        'set -o pipefail; mariadb-dump -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" | gzip > "$BACKUP_FILE"',
+        expect.objectContaining({
+          env: expect.objectContaining({BACKUP_FILE: malicious}),
+        }),
       );
     });
 

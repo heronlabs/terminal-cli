@@ -12,11 +12,16 @@ export class MysqlRollupService extends RollupService {
 
     try {
       execSync(
-        `set -o pipefail; gunzip -c "${backupFileName}" | mariadb -u "${user}" -h "${host}" -P "${port}" "${name}"`,
+        'set -o pipefail; gunzip -c "$BACKUP_FILE" | mariadb -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME"',
         {
           env: {
             ...process.env,
+            DB_USER: user,
+            DB_HOST: host,
+            DB_PORT: port,
+            DB_NAME: name,
             MYSQL_PWD: password,
+            BACKUP_FILE: backupFileName,
           },
           stdio: ['inherit', 'pipe', 'inherit'],
           shell: '/bin/bash',

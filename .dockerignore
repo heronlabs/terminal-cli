@@ -1,0 +1,12 @@
+# Whitelist approach: ignore everything, then re-include only what the image
+# build needs. Guarantees secrets (.env), VCS history (.git), local artifacts
+# (bin, coverage, reports, node_modules) and tooling never enter the build
+# context — critical because the published images are public.
+*
+
+!package.json
+!pnpm-lock.yaml
+!nest-cli.json
+!tsconfig.json
+!tsconfig.bin.json
+!src

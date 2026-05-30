@@ -1,23 +1,37 @@
-FROM node:22-alpine
+FROM node:22.20.0-alpine AS builder
 
 ENV CI=true
-
 WORKDIR /app
 
-COPY . .
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
-# hadolint ignore=DL3018
-RUN corepack enable \
-  && corepack prepare pnpm@10.33.2 --activate \
-  && apk update && apk upgrade \
-  && apk add --no-cache \
+COPY package.json pnpm-lock.yaml nest-cli.json tsconfig.json tsconfig.bin.json ./
+COPY src ./src
+
+RUN pnpm install --frozen-lockfile \
+  && pnpm build \
+  && pnpm prune --prod
+
+FROM node:22.20.0-alpine AS runtime
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN apk add --no-cache \
   postgresql-client \
   mysql-client \
-  bash \
-  && pnpm install --frozen-lockfile \
-  && pnpm build \
-  && pnpm store prune \
-  && printf '#!/bin/sh\nexec node /app/bin/src/main.js "$@"\n' > /usr/local/bin/hcli \
-  && chmod +x /usr/local/bin/hcli
+  mariadb-client \
+  mariadb-connector-c \
+  bash
+
+COPY --from=builder /app/bin ./bin
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+RUN printf '#!/bin/sh\nexec node /app/bin/src/main.js "$@"\n' > /usr/local/bin/hcli \
+  && chmod +x /usr/local/bin/hcli \
+  && chown -R node:node /app
+
+USER node
 
 CMD ["bash"]

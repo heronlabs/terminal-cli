@@ -16,17 +16,19 @@ export class PsqlBackupService extends BackupService {
     const backupFileName = filename ?? `${name}-${timestamp}.sql.gz`;
 
     try {
-      execSync(
-        `set -o pipefail; pg_dump -U "${user}" -h "${host}" -p "${port}" -d "${name}" | gzip > "${backupFileName}"`,
-        {
-          env: {
-            ...process.env,
-            PGPASSWORD: password,
-          },
-          stdio: ['inherit', 'pipe', 'inherit'],
-          shell: '/bin/bash',
+      execSync('set -o pipefail; pg_dump | gzip > "$BACKUP_FILE"', {
+        env: {
+          ...process.env,
+          PGHOST: host,
+          PGPORT: port,
+          PGDATABASE: name,
+          PGUSER: user,
+          PGPASSWORD: password,
+          BACKUP_FILE: backupFileName,
         },
-      );
+        stdio: ['inherit', 'pipe', 'inherit'],
+        shell: '/bin/bash',
+      });
 
       this.logger.log(
         `Backup PostgreSQL database successfully! Filename: ${backupFileName}`,

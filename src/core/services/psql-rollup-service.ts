@@ -11,17 +11,19 @@ export class PsqlRollupService extends RollupService {
     const {host, port, name, user, password} = this.environmentService.database;
 
     try {
-      execSync(
-        `set -o pipefail; gunzip -c "${backupFileName}" | psql -U "${user}" -h "${host}" -p "${port}" -d "${name}"`,
-        {
-          env: {
-            ...process.env,
-            PGPASSWORD: password,
-          },
-          stdio: ['inherit', 'pipe', 'inherit'],
-          shell: '/bin/bash',
+      execSync('set -o pipefail; gunzip -c "$BACKUP_FILE" | psql', {
+        env: {
+          ...process.env,
+          PGHOST: host,
+          PGPORT: port,
+          PGDATABASE: name,
+          PGUSER: user,
+          PGPASSWORD: password,
+          BACKUP_FILE: backupFileName,
         },
-      );
+        stdio: ['inherit', 'pipe', 'inherit'],
+        shell: '/bin/bash',
+      });
 
       return {ok: true as const, data: {backupFileName}};
     } catch {
