@@ -21,15 +21,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-# Release model assumptions:
-# - build-tag-release-action creates the vX.Y.Z tag and force-updates the
-#   floating git tags vX and vX.Y. This workflow mirrors those same names onto
-#   npm (dist-tags) and Docker (image tags), plus `latest`.
-# - Releases are strictly FORWARD-MOVING. Every floating pointer (git, npm and
-#   docker) is repointed unconditionally — exactly as the release action already
-#   force-pushes vX / vX.Y — so dispatching from an older line (e.g. a 1.4.x
-#   patch after 2.0.0 already exists) moves those pointers BACKWARD. Release
-#   older lines with care, or add a semver guard before the pointer moves.
+# Release model:
+# - build-tag-release-action creates the immutable vX.Y.Z git tag (it also keeps
+#   floating vX / vX.Y git tags, which this workflow intentionally does NOT mirror).
+# - npm and Docker publish only the full version X.Y.Z. npm necessarily moves its
+#   `latest` dist-tag to it (standard), and Docker is tagged `latest` to match.
+#   `latest` is the only moving pointer — there are no vX / vX.Y package/image
+#   tags, so an out-of-order release can affect `latest` but never a published
+#   version (which is immutable).
 # - publish-npm and publish-docker run independently after the tag exists. A
 #   partial failure (tag + one registry but not the other) is possible; the git
 #   tag is the source of truth — re-publish the failed channel from the tag.
@@ -41,18 +40,15 @@ jobs:
     permissions:
       contents: write
     outputs:
-      tag: ${{ steps.version.outputs.tag }} # vX.Y.Z (checkout ref)
-      version: ${{ steps.version.outputs.version }} # X.Y.Z (npm semver)
-      major-tag: ${{ steps.version.outputs.major-tag }} # vX (floating)
-      minor-tag: ${{ steps.version.outputs.minor-tag }} # vX.Y (floating)
+      tag: ${{ steps.version.outputs.tag }} # vX.Y.Z — checkout ref + version tag
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT }}
 
-      # Bumps + commits the version, creates the vX.Y.Z tag, and force-updates
-      # the floating git tags vX / vX.Y. Outputs: version, tag, major-tag, minor-tag.
+      # Bumps + commits the version and creates the vX.Y.Z tag (also keeps the
+      # floating vX / vX.Y git tags, which this workflow does not publish).
       - uses: heronlabs/build-tag-release-action@v2
         id: version
         with:
@@ -85,24 +81,12 @@ jobs:
 
       # The checked-out tag already carries the bumped version (the release
       # action commits the bump before tagging), so no version edit is needed.
-      # Provenance gives a verifiable, public build-origin attestation.
+      # Publishes the full version X.Y.Z (npm sets `latest` to it). Provenance
+      # gives a verifiable, public build-origin attestation.
       - name: Publish to public npm registry
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # npm versions are immutable, so the floating vX / vX.Y pointers (the same
-      # names the release action gives the git tags) are modeled as dist-tags
-      # (install via `npm i @heronlabs/terminal-cli@v1`).
-      - name: Move floating dist-tags (major, minor)
-        run: |
-          npm dist-tag add "@heronlabs/terminal-cli@${VERSION}" "${MAJOR_TAG}"
-          npm dist-tag add "@heronlabs/terminal-cli@${VERSION}" "${MINOR_TAG}"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          VERSION: ${{ needs.setup-tags.outputs.version }}
-          MAJOR_TAG: ${{ needs.setup-tags.outputs.major-tag }}
-          MINOR_TAG: ${{ needs.setup-tags.outputs.minor-tag }}
 
   publish-docker:
     name: 'Publish image (${{ matrix.image }})'
@@ -132,15 +116,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # One build, many tags: vX.Y.Z + the floating vX.Y / vX / latest pointers.
+      # Full version vX.Y.Z (immutable) plus the conventional moving `latest`.
       - uses: docker/metadata-action@v5
         id: meta
         with:
           images: heronlabs/${{ matrix.image }}
           tags: |
             type=raw,value=${{ needs.setup-tags.outputs.tag }}
-            type=raw,value=${{ needs.setup-tags.outputs.minor-tag }}
-            type=raw,value=${{ needs.setup-tags.outputs.major-tag }}
             type=raw,value=latest
 
       - uses: docker/build-push-action@v6
