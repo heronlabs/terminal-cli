@@ -69,6 +69,26 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Publish summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="$(npm pkg get name | tr -d '"')"
+          version="$(npm pkg get version | tr -d '"')"
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## npm Publish summary
+
+          Published \`${name}@${version}\` to the public npm registry.
+
+          | Field | Value |
+          | --- | --- |
+          | Package | \`${name}\` |
+          | Version | [\`${version}\`](https://www.npmjs.com/package/${name}/v/${version}) |
+          | Registry | https://registry.npmjs.org |
+          | Access | public |
+          | Provenance | enabled ✅ |
+          EOF
+
   publish-docker:
     name: 'Publish image (${{ matrix.image }})'
     needs: setup-tags
