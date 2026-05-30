@@ -24,11 +24,10 @@ concurrency:
 # Release model:
 # - build-tag-release-action creates the immutable vX.Y.Z git tag (it also keeps
 #   floating vX / vX.Y git tags, which this workflow intentionally does NOT mirror).
-# - npm and Docker publish only the full version X.Y.Z. npm necessarily moves its
-#   `latest` dist-tag to it (standard), and Docker is tagged `latest` to match.
-#   `latest` is the only moving pointer — there are no vX / vX.Y package/image
-#   tags, so an out-of-order release can affect `latest` but never a published
-#   version (which is immutable).
+# - npm and Docker publish only the full version X.Y.Z. Docker carries no moving
+#   tag at all; npm necessarily moves its `latest` dist-tag (unavoidable on
+#   publish). There are no vX / vX.Y package/image tags, so out-of-order releases
+#   can only ever affect npm `latest` — never a published version (immutable).
 # - publish-npm and publish-docker run independently after the tag exists. A
 #   partial failure (tag + one registry but not the other) is possible; the git
 #   tag is the source of truth — re-publish the failed channel from the tag.
@@ -116,14 +115,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Full version vX.Y.Z (immutable) plus the conventional moving `latest`.
+      # Full version vX.Y.Z only — immutable, no moving tag.
       - uses: docker/metadata-action@v5
         id: meta
         with:
           images: heronlabs/${{ matrix.image }}
           tags: |
             type=raw,value=${{ needs.setup-tags.outputs.tag }}
-            type=raw,value=latest
 
       - uses: docker/build-push-action@v6
         with:
