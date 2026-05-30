@@ -13,24 +13,12 @@ on:
           - 'minor'
           - 'patch'
 
-# Least privilege by default; each job widens only what it needs.
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
-
-# Release model:
-# - build-tag-release-action creates the immutable vX.Y.Z git tag (it also keeps
-#   floating vX / vX.Y git tags, which this workflow intentionally does NOT mirror).
-# - npm and Docker publish only the full version X.Y.Z. Docker carries no moving
-#   tag at all; npm necessarily moves its `latest` dist-tag (unavoidable on
-#   publish). There are no vX / vX.Y package/image tags, so out-of-order releases
-#   can only ever affect npm `latest` — never a published version (immutable).
-# - publish-npm and publish-docker run independently after the tag exists. A
-#   partial failure (tag + one registry but not the other) is possible; the git
-#   tag is the source of truth — re-publish the failed channel from the tag.
 
 jobs:
   setup-tags:
@@ -39,15 +27,13 @@ jobs:
     permissions:
       contents: write
     outputs:
-      tag: ${{ steps.version.outputs.tag }} # vX.Y.Z — checkout ref + version tag
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT }}
 
-      # Bumps + commits the version and creates the vX.Y.Z tag (also keeps the
-      # floating vX / vX.Y git tags, which this workflow does not publish).
       - uses: heronlabs/build-tag-release-action@v2
         id: version
         with:
@@ -60,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # required for npm provenance attestation
+      id-token: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -78,10 +64,6 @@ jobs:
 
       - run: pnpm build
 
-      # The checked-out tag already carries the bumped version (the release
-      # action commits the bump before tagging), so no version edit is needed.
-      # Publishes the full version X.Y.Z (npm sets `latest` to it). Provenance
-      # gives a verifiable, public build-origin attestation.
       - name: Publish to public npm registry
         run: npm publish --provenance --access public
         env:
@@ -115,7 +97,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Full version vX.Y.Z only — immutable, no moving tag.
       - uses: docker/metadata-action@v5
         id: meta
         with:

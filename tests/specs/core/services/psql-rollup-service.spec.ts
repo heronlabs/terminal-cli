@@ -51,18 +51,18 @@ describe('Given a service', () => {
       );
     });
 
-    it('Should not interpolate the filename into the command string (injection safe)', async () => {
+    it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
       const malicious = '$(touch /tmp/pwned).sql.gz';
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(malicious, true);
 
-      const [command, options] = vi.mocked(execSync).mock.calls[0]!;
-      expect(command).toBe('set -o pipefail; gunzip -c "$BACKUP_FILE" | psql');
-      expect(command).not.toContain(malicious);
-      expect((options as {env: Record<string, string>}).env.BACKUP_FILE).toBe(
-        malicious,
+      expect(execSync).toHaveBeenCalledWith(
+        'set -o pipefail; gunzip -c "$BACKUP_FILE" | psql',
+        expect.objectContaining({
+          env: expect.objectContaining({BACKUP_FILE: malicious}),
+        }),
       );
     });
 

@@ -16,10 +16,6 @@ export class PsqlBackupService extends BackupService {
     const backupFileName = filename ?? `${name}-${timestamp}.sql.gz`;
 
     try {
-      // Command is a constant: every dynamic value flows through `env` and is
-      // referenced as a quoted shell variable. Bash does not re-evaluate the
-      // contents of an expanded variable, so a malicious filename or db param
-      // (e.g. "$(rm -rf /)") is treated literally — no shell injection.
       execSync('set -o pipefail; pg_dump | gzip > "$BACKUP_FILE"', {
         env: {
           ...process.env,
