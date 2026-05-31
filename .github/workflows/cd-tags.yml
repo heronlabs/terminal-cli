@@ -49,7 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -68,7 +67,7 @@ jobs:
       - run: pnpm build
 
       - name: Publish to public npm registry
-        run: npm publish --provenance --access public
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
