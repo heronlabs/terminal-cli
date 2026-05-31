@@ -1,0 +1,46 @@
+{
+  "forbidden": [
+    {
+      "comment": "Circular dependencies make code unpredictable and hard to test.",
+      "from": {},
+      "name": "no-circular",
+      "severity": "error",
+      "to": {"circular": true}
+    },
+    {
+      "comment": "core/ must not know how it is triggered (no commands, no modules). Invert the dependency or move shared shapes to core/.",
+      "from": {"path": "^src/core/"},
+      "name": "core-no-application",
+      "severity": "error",
+      "to": {"path": "^src/application/"}
+    },
+    {
+      "comment": "infrastructure/ adapters must not import application/ or core/ — they sit at the edge.",
+      "from": {"path": "^src/infrastructure/"},
+      "name": "infrastructure-no-upward-deps",
+      "severity": "error",
+      "to": {"path": "^src/(application|core)/"}
+    },
+    {
+      "comment": "Orphan modules are dead-code candidates.",
+      "from": {
+        "orphan": true,
+        "pathNot": ["\\.d\\.ts$", "(^|/)main\\.ts$"]
+      },
+      "name": "no-orphans",
+      "severity": "warn",
+      "to": {}
+    }
+  ],
+  "options": {
+    "doNotFollow": {"path": "node_modules"},
+    "reporterOptions": {
+      "archi": {
+        "collapsePattern": "^(src/application|src/core|src/infrastructure)/[^/]+"
+      },
+      "dot": {"collapsePattern": "node_modules/[^/]+"}
+    },
+    "tsConfig": {"fileName": "tsconfig.json"},
+    "tsPreCompilationDeps": true
+  }
+}

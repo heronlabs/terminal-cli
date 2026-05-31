@@ -84,7 +84,7 @@
   },
   "scripts": {
     "build": "nest build --path tsconfig.bin.json",
-    "dep:cruise": "depcruise src --config .dependency-cruiser.cjs",
+    "dep:cruise": "depcruise src --config .dependency-cruiser.json",
     "lint:check": "gts lint && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --no-error-on-unmatched-pattern",
     "lint:fix": "gts fix && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --fix --no-error-on-unmatched-pattern",
     "prepublishOnly": "pnpm build",
