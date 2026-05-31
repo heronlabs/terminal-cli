@@ -1,6 +1,9 @@
 name: '[ CD ] | Tags'
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       spec:
@@ -38,7 +41,7 @@ jobs:
         id: version
         with:
           github-token: ${{ secrets.PAT }}
-          spec: ${{ inputs.spec }}
+          spec: ${{ inputs.spec || 'patch' }}
 
   publish-npm:
     name: 'Publish to npm'
