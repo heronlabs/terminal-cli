@@ -73,13 +73,15 @@ pnpm dep:cruise    # architecture check
 | `hcli psql-rollup --filename <file>` | Restore a PostgreSQL database from a backup |
 | `hcli mysql-backup` | Back up a MySQL database (S3 by default) |
 | `hcli mysql-rollup --filename <file>` | Restore a MySQL database from a backup |
+| `hcli easypanel-backup` | Snapshot an EasyPanel host — config + Docker state — to a `.tar.gz` (S3 by default). Run as root on the host. |
+| `hcli easypanel-rollup --filename <file>` | Restore an EasyPanel host from a snapshot. Run as root on the host. **Overwrites host files.** |
 | `hcli version` | Print the current version |
 
 ### Flags
 
 | Flag | Applies to | Meaning |
 |---|---|---|
-| `-f, --filename <name>` | all | Backup filename. Backup defaults to `<database>-<timestamp>.sql.gz`; rollup requires it. |
+| `-f, --filename <name>` | all | Backup filename. DB backups default to `<database>-<timestamp>.sql.gz` and `easypanel-backup` to `easypanel-<timestamp>.tar.gz`; rollup requires it. |
 | `--local` | all | Read/write the backup on the local filesystem instead of S3. |
 
 Examples:
@@ -96,6 +98,15 @@ hcli psql-rollup --local --filename seed.sql.gz
 
 # Restore from S3
 hcli mysql-rollup --filename mydb-2026-03-05T12-00-00Z.sql.gz
+
+# Snapshot an EasyPanel host to S3 (run as root on the host)
+sudo hcli easypanel-backup
+
+# Snapshot to a local file with a custom name
+sudo hcli easypanel-backup --local --filename easypanel-snapshot.tar.gz
+
+# Restore an EasyPanel host from S3 (OVERWRITES host files)
+sudo hcli easypanel-rollup --filename easypanel-2026-03-05T12-00-00Z.tar.gz
 ```
 
 ## Configuration
@@ -155,11 +166,84 @@ The cron images dump `printenv` to `/etc/environment` so `crond` inherits the
 runtime variables injected by EasyPanel, run an immediate backup, then start
 `crond` in the foreground.
 
+Two extra compose files cover the EasyPanel host snapshot: `docker-compose.easypanel.yml`
+(a sandbox that exercises the tar packaging/restore round-trip locally) and
+`examples/docker-compose.easypanel-host.yml` (an illustrative — not recommended —
+containerised deployment; native host execution is preferred, see
+[EasyPanel host backup](#easypanel-host-backup)).
+
 Local stack for manual testing:
 
 ```bash
 docker compose up        # spins up psql + mysql DBs and CLI containers
 ```
+
+## EasyPanel host backup
+
+`easypanel-backup` / `easypanel-rollup` snapshot a whole [EasyPanel](https://easypanel.io/)
+host — `/etc/easypanel`, `/var/lib/docker/volumes`, and `/var/lib/docker/buildkit` —
+into a single `.tar.gz`. To keep the snapshot consistent the command stops the
+Docker daemon while the archive is taken and restarts it afterwards (even if the
+backup fails).
+
+Because it runs `systemctl stop docker` and reads `/var/lib/docker`, it must run
+**natively on the host as root**, not inside a container managed by that daemon.
+
+```bash
+# Install the CLI on the host (Ubuntu 22.04)
+npm i -g @heronlabs/terminal-cli
+
+# Back up to S3 (needs only the AWS_* env — no DB vars)
+sudo AWS_S3_BUCKET_NAME=my-bucket AWS_REGION=us-east-1 \
+     AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... \
+     hcli easypanel-backup
+```
+
+If not run as root the command refuses to start (it will not stop Docker and
+then fail), so schedule it as root.
+
+> ⚠️ **`easypanel-rollup` extracts the archive to `/` and overwrites host files**
+> (`/etc/easypanel` and `/var/lib/docker`). It does not prompt — run it
+> deliberately, against a host you intend to roll back.
+
+### Scheduling (every 12h)
+
+Match the DB cron containers' cadence with either a host crontab line:
+
+```cron
+# /etc/crontab — run as root, source the env first
+0 */12 * * * root . /etc/easypanel-backup.env; hcli easypanel-backup
+```
+
+…or a systemd timer:
+
+```ini
+# /etc/systemd/system/easypanel-backup.service
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/easypanel-backup.env
+ExecStart=/usr/bin/hcli easypanel-backup
+```
+
+```ini
+# /etc/systemd/system/easypanel-backup.timer
+[Timer]
+OnCalendar=*-*-* 00/12:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+systemctl enable --now easypanel-backup.timer
+```
+
+Put the `AWS_*` variables in `/etc/easypanel-backup.env`. A containerised form is
+illustrated (not recommended) in
+[`examples/docker-compose.easypanel-host.yml`](./examples/docker-compose.easypanel-host.yml);
+[`docker-compose.easypanel.yml`](./docker-compose.easypanel.yml) is a sandbox that
+exercises only the tar packaging/restore round-trip.
 
 ## Testing
 

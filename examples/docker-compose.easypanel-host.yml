@@ -1,0 +1,46 @@
+# EasyPanel host backup — DEPLOYMENT EXAMPLE (illustrative, not recommended)
+#
+# ⚠️  READ FIRST
+# The RECOMMENDED way to back up an EasyPanel host is to run `hcli` NATIVELY on
+# the Ubuntu host as root, scheduled with cron or a systemd timer:
+#
+#   npm i -g @heronlabs/terminal-cli
+#   sudo AWS_S3_BUCKET_NAME=... AWS_REGION=... \
+#        AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... \
+#        hcli easypanel-backup
+#
+# See the README "EasyPanel host backup" section for the cron line / systemd
+# timer. `easypanel-rollup` extracts the archive to `/` and OVERWRITES host
+# files — run it deliberately.
+#
+# Why native, not a container?
+# `easypanel-backup` runs `systemctl stop docker` and reads /var/lib/docker.
+# A container managed by that same daemon cannot reliably stop it (stopping the
+# daemon kills the container), and there is no systemd inside the container.
+# This compose file is therefore ILLUSTRATIVE ONLY — it shows the host mounts
+# and env a container would need; it is not a supported run mode.
+
+services:
+  easypanel-backup:
+    image: ghcr.io/heronlabs/terminal-cli:latest # or build from this repo's Dockerfile
+    # Root + host PID/systemd access is required to stop the Docker daemon.
+    privileged: true
+    pid: host
+    network_mode: host
+    user: root
+    environment:
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    volumes:
+      # The hardcoded backup roots, bind-mounted from the host.
+      - /etc/easypanel:/etc/easypanel
+      - /var/lib/docker:/var/lib/docker
+      # The host Docker socket (so docker-aware tooling can reach the daemon).
+      - /var/run/docker.sock:/var/run/docker.sock
+      # systemctl needs to talk to the host's systemd over the D-Bus socket.
+      - /run/systemd:/run/systemd
+    # Back up to S3 on start. Add `--local` to keep the archive on a mounted
+    # volume instead, or swap for `easypanel-rollup -f <file>` to restore.
+    command: ['easypanel-backup']

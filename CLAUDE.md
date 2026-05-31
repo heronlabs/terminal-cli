@@ -20,8 +20,13 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 
 ## CLI Commands (`hcli`)
 
-`psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`, `version`.
+`psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`,
+`easypanel-backup`, `easypanel-rollup`, `version`.
 Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3).
+
+The `easypanel-*` commands snapshot an EasyPanel host (config + Docker state) to
+a `.tar.gz` rather than a database; they run natively on the host **as root**
+(stop Docker → tar → restart) and use only the `AWS_*` env vars.
 
 ## Source Layout
 
