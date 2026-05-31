@@ -80,8 +80,9 @@ locations, and keeping them out of the variable path preserves injection-safety.
 ### `dump()` — `easypanel-backup`
 
 ```bash
+set -e
 trap 'systemctl start docker' EXIT
-systemctl stop docker.socket
+systemctl stop docker.socket || true
 systemctl stop docker
 tar czf "$ARCHIVE" --warning=no-file-changed /etc/easypanel /var/lib/docker/volumes /var/lib/docker/buildkit 2>/dev/null || true
 test -s "$ARCHIVE"
@@ -96,8 +97,9 @@ test -s "$ARCHIVE"
 ### `restore()` — `easypanel-rollup`
 
 ```bash
+set -e
 trap 'systemctl start docker' EXIT
-systemctl stop docker.socket
+systemctl stop docker.socket || true
 systemctl stop docker
 tar xzf "$ARCHIVE" -C /
 ```
