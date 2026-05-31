@@ -92,5 +92,5 @@
     "test:mutation": "stryker run stryker.conf.json",
     "test:unit": "vitest run"
   },
-  "version": "0.0.2"
+  "version": "0.0.3"
 }
