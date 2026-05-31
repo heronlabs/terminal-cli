@@ -1,6 +1,7 @@
 name: '[ CI ] | Terminal CLI'
 
 on:
+  workflow_dispatch: {}
   pull_request:
     branches: [main]
 
