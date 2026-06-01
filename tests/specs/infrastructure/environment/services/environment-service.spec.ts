@@ -1,49 +1,108 @@
 import {faker} from '@faker-js/faker';
+import {ParameterFactory} from '@heronlabs/env-ssm';
 
 import {environmentModule} from '../../../../../src/infrastructure/environment/environment-module';
 import {EnvironmentService} from '../../../../../src/infrastructure/environment/services/environment-service';
 import {
   configService,
   createTestingModule,
+  ssmGetOrThrow,
 } from '../../../../__mocks__/create-testing-module';
+
+vi.mock('@heronlabs/env-ssm', () => ({
+  ParameterFactory: {make: vi.fn()},
+}));
 
 describe('Given a service', () => {
   let service: EnvironmentService;
 
   beforeEach(async () => {
+    vi.mocked(ParameterFactory.make).mockResolvedValue({
+      getOrThrow: ssmGetOrThrow,
+    } as never);
+
     const moduleRef = await createTestingModule(environmentModule).compile();
 
     service = moduleRef.get(EnvironmentService);
   });
 
-  describe('Given environment', () => {
-    it('Should expose the database connection settings as a deep-equal object', () => {
-      const host = faker.string.alpha();
-      const port = faker.string.numeric();
-      const name = faker.string.alpha();
-      const user = faker.string.alpha();
-      const password = faker.string.alpha();
+  describe('Given database resolution', () => {
+    it('Should resolve DB_URL through env-ssm getOrThrow on init', async () => {
+      ssmGetOrThrow.mockResolvedValueOnce(
+        'postgres://user:pass@host:5432/dbname',
+      );
 
-      configService.getOrThrow.mockImplementation((key: string) => {
-        switch (key) {
-          case 'DB_HOST':
-            return host;
-          case 'DB_PORT':
-            return port;
-          case 'DB_NAME':
-            return name;
-          case 'DB_USER':
-            return user;
-          case 'DB_PASSWORD':
-            return password;
-          default:
-            return key;
-        }
-      });
+      await service.onModuleInit();
 
-      expect(service.database).toEqual({host, port, name, user, password});
+      expect(ssmGetOrThrow).toHaveBeenCalledWith('DB_URL');
     });
 
+    it('Should parse the connection URL into the database connection parts', async () => {
+      ssmGetOrThrow.mockResolvedValueOnce(
+        'postgres://alice:s3cret@db.internal:6543/analytics',
+      );
+
+      await service.onModuleInit();
+
+      expect(service.database).toEqual({
+        host: 'db.internal',
+        port: '6543',
+        name: 'analytics',
+        user: 'alice',
+        password: 's3cret',
+      });
+    });
+
+    it('Should parse a mysql connection URL into the database connection parts', async () => {
+      ssmGetOrThrow.mockResolvedValueOnce(
+        'mysql://bob:hunter2@mysql.host:3306/store',
+      );
+
+      await service.onModuleInit();
+
+      expect(service.database).toEqual({
+        host: 'mysql.host',
+        port: '3306',
+        name: 'store',
+        user: 'bob',
+        password: 'hunter2',
+      });
+    });
+
+    it('Should decode percent-encoded credentials in the connection URL', async () => {
+      ssmGetOrThrow.mockResolvedValueOnce(
+        'postgres://user%40acme:p%40ss%3Aword@host:5432/dbname',
+      );
+
+      await service.onModuleInit();
+
+      expect(service.database).toEqual({
+        host: 'host',
+        port: '5432',
+        name: 'dbname',
+        user: 'user@acme',
+        password: 'p@ss:word',
+      });
+    });
+
+    it('Should throw when the resolved DB_URL is not a valid connection URL', async () => {
+      ssmGetOrThrow.mockResolvedValueOnce('not-a-valid-url');
+
+      await expect(service.onModuleInit()).rejects.toThrow('Invalid DB_URL');
+    });
+
+    it('Should bootstrap env-ssm with the DB_URL parameter root', async () => {
+      ssmGetOrThrow.mockResolvedValueOnce(
+        'postgres://user:pass@host:5432/dbname',
+      );
+
+      await service.onModuleInit();
+
+      expect(ParameterFactory.make).toHaveBeenCalledWith('DB_URL');
+    });
+  });
+
+  describe('Given storage resolution', () => {
     it('Should expose the storage settings as a deep-equal object', () => {
       const bucketName = faker.string.alpha();
 

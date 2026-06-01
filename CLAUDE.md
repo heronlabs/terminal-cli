@@ -44,9 +44,12 @@ Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3).
 
 ## Configuration
 
-Env vars (see `.env.example`): `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`,
-`DB_PASSWORD`, and for S3 `AWS_S3_BUCKET_NAME`, `AWS_REGION`,
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
+Env vars (see `.env.example`): `DB_URL` (a `postgres://`/`mysql://`
+connection URL, or an AWS SSM Parameter Store ARN resolved via
+`@heronlabs/env-ssm`), and for S3 `AWS_S3_BUCKET_NAME`, `AWS_REGION`,
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. `DB_URL` is resolved + parsed
+once by `EnvironmentService` (`onModuleInit`) into the host/port/name/user/
+password the dump/restore services pass to engine subprocesses via env vars.
 
 ## Testing
 

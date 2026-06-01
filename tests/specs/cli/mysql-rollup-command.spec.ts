@@ -1,4 +1,5 @@
 import {faker} from '@faker-js/faker';
+import {ParameterFactory} from '@heronlabs/env-ssm';
 import {execSync} from 'child_process';
 import {writeFileSync} from 'fs';
 
@@ -9,10 +10,12 @@ import {
   createTestingModule,
   loggerService,
   s3Service,
+  ssmGetOrThrow,
 } from '../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({writeFileSync: vi.fn(), unlinkSync: vi.fn()}));
+vi.mock('@heronlabs/env-ssm', () => ({ParameterFactory: {make: vi.fn()}}));
 
 describe('Given a CLI command', () => {
   let command: MysqlRollupCommand;
@@ -20,7 +23,12 @@ describe('Given a CLI command', () => {
   const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
   beforeEach(async () => {
+    vi.mocked(ParameterFactory.make).mockResolvedValue({
+      getOrThrow: ssmGetOrThrow,
+    } as never);
+
     const moduleRef = await createTestingModule(cliModule).compile();
+    await moduleRef.init();
     command = moduleRef.get(MysqlRollupCommand);
   });
 

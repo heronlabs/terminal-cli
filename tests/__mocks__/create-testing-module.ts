@@ -29,11 +29,16 @@ export const configService: {
   getOrThrow: vi.fn(),
 };
 
+export const ssmGetOrThrow: ViMock = vi.fn();
+
+export const DB_URL = 'postgres://db_user:db_password@db_host:5432/db_name';
+
 export const createTestingModule = (
   metadata: ModuleMetadata,
 ): TestingModuleBuilder => {
   configService.get.mockImplementation((key: string) => key);
   configService.getOrThrow.mockImplementation((key: string) => key);
+  ssmGetOrThrow.mockResolvedValue(DB_URL);
 
   const moduleRef = Test.createTestingModule(metadata);
 
