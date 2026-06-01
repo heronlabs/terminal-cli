@@ -5,7 +5,11 @@
 # exercise `hcli easypanel-backup` / `hcli easypanel-rollup` end to end against
 # something that actually populates /etc/easypanel and /var/lib/docker.
 #
-#   docker compose -f docker-compose.easypanel.yml up -d
+#   docker compose -f docker-compose.easypanel.yml up
+#
+# `setup` bootstraps EasyPanel — it creates the long-running EasyPanel container
+# itself via the Docker socket — and then EXITS. That one-shot exit is expected
+# (so there is deliberately no `restart:` policy on it); EasyPanel keeps running.
 #
 # Then open http://localhost:3000, create a project/service so EasyPanel writes
 # real state, and from the BUILT CLI (`pnpm build` → bin/) produce and inspect a
@@ -31,7 +35,6 @@ services:
     image: easypanel/easypanel
     container_name: easypanel
     command: setup
-    restart: unless-stopped
     ports:
       - '80:80'
       - '443:443'
