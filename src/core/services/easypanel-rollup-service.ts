@@ -3,6 +3,7 @@ import {execSync} from 'child_process';
 
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 import {RollupService} from '../interfaces/rollup-service';
+import {ScriptLoaderService} from './script-loader-service';
 
 @Injectable()
 export class EasypanelRollupService extends RollupService {
@@ -17,21 +18,14 @@ export class EasypanelRollupService extends RollupService {
     }
 
     try {
-      execSync(
-        `set -e
-trap 'systemctl start docker' EXIT
-systemctl stop docker.socket || true
-systemctl stop docker
-tar xzf "$ARCHIVE" -C /`,
-        {
-          env: {
-            ...process.env,
-            ARCHIVE: backupFileName,
-          },
-          stdio: ['inherit', 'pipe', 'inherit'],
-          shell: '/bin/bash',
+      execSync(this.scriptLoader.load('easypanel-rollup'), {
+        env: {
+          ...process.env,
+          ARCHIVE: backupFileName,
         },
-      );
+        stdio: ['inherit', 'pipe', 'inherit'],
+        shell: '/bin/bash',
+      });
 
       return {ok: true as const, data: {backupFileName}};
     } catch {
@@ -42,6 +36,7 @@ tar xzf "$ARCHIVE" -C /`,
   constructor(
     protected readonly logger: Logger,
     protected readonly s3StorageService: S3StorageService,
+    private readonly scriptLoader: ScriptLoaderService,
   ) {
     super(logger, s3StorageService);
   }

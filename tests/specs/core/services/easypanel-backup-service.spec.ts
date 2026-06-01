@@ -4,6 +4,7 @@ import {readFileSync, unlinkSync} from 'fs';
 
 import {cliModule} from '../../../../src/application/cli/cli-module';
 import {EasypanelBackupService} from '../../../../src/core/services/easypanel-backup-service';
+import {ScriptLoaderService} from '../../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   loggerService,
@@ -13,22 +14,23 @@ import {
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
 
-const BACKUP_COMMAND = `set -e
-trap 'systemctl start docker' EXIT
-systemctl stop docker.socket || true
-systemctl stop docker
-tar czf "$ARCHIVE" --warning=no-file-changed /etc/easypanel /var/lib/docker/volumes /var/lib/docker/buildkit 2>/dev/null || true
-test -s "$ARCHIVE"`;
+const BACKUP_SCRIPT = `loaded-easypanel-backup-${faker.string.alphanumeric(8)}.sh`;
 
 describe('Given a service', () => {
   let service: EasypanelBackupService;
+
+  const scriptLoader = {load: vi.fn()};
 
   const originalGetuid = process.getuid;
 
   beforeEach(async () => {
     process.getuid = vi.fn(() => 0);
+    scriptLoader.load.mockReturnValue(BACKUP_SCRIPT);
 
-    const moduleRef = await createTestingModule(cliModule).compile();
+    const moduleRef = await createTestingModule(cliModule)
+      .overrideProvider(ScriptLoaderService)
+      .useValue(scriptLoader)
+      .compile();
     service = moduleRef.get(EasypanelBackupService);
   });
 
@@ -37,14 +39,24 @@ describe('Given a service', () => {
   });
 
   describe('Given easypanel backup', () => {
-    it('Should call execSync with a constant tar command and pass the archive path via env', async () => {
+    it('Should load the easypanel-backup script by name', async () => {
       const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(true, filename);
 
-      expect(execSync).toHaveBeenCalledWith(BACKUP_COMMAND, {
+      expect(scriptLoader.load).toHaveBeenCalledWith('easypanel-backup');
+    });
+
+    it('Should call execSync with the loaded script and pass the archive path via env', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true, filename);
+
+      expect(execSync).toHaveBeenCalledWith(BACKUP_SCRIPT, {
         env: {
           ...process.env,
           ARCHIVE: filename,
@@ -62,7 +74,7 @@ describe('Given a service', () => {
       await service.run(true, malicious);
 
       expect(execSync).toHaveBeenCalledWith(
-        BACKUP_COMMAND,
+        BACKUP_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({ARCHIVE: malicious}),
         }),
@@ -99,7 +111,7 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(execSync).toHaveBeenCalledWith(
-        BACKUP_COMMAND,
+        BACKUP_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({
             ARCHIVE: expect.stringMatching(

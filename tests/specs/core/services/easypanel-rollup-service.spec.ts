@@ -4,6 +4,7 @@ import {unlinkSync} from 'fs';
 
 import {cliModule} from '../../../../src/application/cli/cli-module';
 import {EasypanelRollupService} from '../../../../src/core/services/easypanel-rollup-service';
+import {ScriptLoaderService} from '../../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   loggerService,
@@ -17,21 +18,23 @@ vi.mock('fs', () => ({
   unlinkSync: vi.fn(),
 }));
 
-const RESTORE_COMMAND = `set -e
-trap 'systemctl start docker' EXIT
-systemctl stop docker.socket || true
-systemctl stop docker
-tar xzf "$ARCHIVE" -C /`;
+const RESTORE_SCRIPT = `loaded-easypanel-rollup-${faker.string.alphanumeric(8)}.sh`;
 
 describe('Given a service', () => {
   let service: EasypanelRollupService;
+
+  const scriptLoader = {load: vi.fn()};
 
   const originalGetuid = process.getuid;
 
   beforeEach(async () => {
     process.getuid = vi.fn(() => 0);
+    scriptLoader.load.mockReturnValue(RESTORE_SCRIPT);
 
-    const moduleRef = await createTestingModule(cliModule).compile();
+    const moduleRef = await createTestingModule(cliModule)
+      .overrideProvider(ScriptLoaderService)
+      .useValue(scriptLoader)
+      .compile();
     service = moduleRef.get(EasypanelRollupService);
   });
 
@@ -40,14 +43,24 @@ describe('Given a service', () => {
   });
 
   describe('Given easypanel rollup', () => {
-    it('Should call execSync with a constant tar extract command and pass the archive path via env', async () => {
+    it('Should load the easypanel-rollup script by name', async () => {
       const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(filename, true);
 
-      expect(execSync).toHaveBeenCalledWith(RESTORE_COMMAND, {
+      expect(scriptLoader.load).toHaveBeenCalledWith('easypanel-rollup');
+    });
+
+    it('Should call execSync with the loaded script and pass the archive path via env', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(filename, true);
+
+      expect(execSync).toHaveBeenCalledWith(RESTORE_SCRIPT, {
         env: {
           ...process.env,
           ARCHIVE: filename,
@@ -65,7 +78,7 @@ describe('Given a service', () => {
       await service.run(malicious, true);
 
       expect(execSync).toHaveBeenCalledWith(
-        RESTORE_COMMAND,
+        RESTORE_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({ARCHIVE: malicious}),
         }),

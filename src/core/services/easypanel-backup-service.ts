@@ -4,6 +4,7 @@ import {DateTime} from 'luxon';
 
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 import {BackupService} from '../interfaces/backup-service';
+import {ScriptLoaderService} from './script-loader-service';
 
 @Injectable()
 export class EasypanelBackupService extends BackupService {
@@ -22,22 +23,14 @@ export class EasypanelBackupService extends BackupService {
     const backupFileName = filename ?? `easypanel-${timestamp}.tar.gz`;
 
     try {
-      execSync(
-        `set -e
-trap 'systemctl start docker' EXIT
-systemctl stop docker.socket || true
-systemctl stop docker
-tar czf "$ARCHIVE" --warning=no-file-changed /etc/easypanel /var/lib/docker/volumes /var/lib/docker/buildkit 2>/dev/null || true
-test -s "$ARCHIVE"`,
-        {
-          env: {
-            ...process.env,
-            ARCHIVE: backupFileName,
-          },
-          stdio: ['inherit', 'pipe', 'inherit'],
-          shell: '/bin/bash',
+      execSync(this.scriptLoader.load('easypanel-backup'), {
+        env: {
+          ...process.env,
+          ARCHIVE: backupFileName,
         },
-      );
+        stdio: ['inherit', 'pipe', 'inherit'],
+        shell: '/bin/bash',
+      });
 
       this.logger.log(
         `Backup EasyPanel host successfully! Filename: ${backupFileName}`,
@@ -52,6 +45,7 @@ test -s "$ARCHIVE"`,
   constructor(
     protected readonly logger: Logger,
     protected readonly s3StorageService: S3StorageService,
+    private readonly scriptLoader: ScriptLoaderService,
   ) {
     super(logger, s3StorageService);
   }

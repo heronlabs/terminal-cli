@@ -166,11 +166,10 @@ The cron images dump `printenv` to `/etc/environment` so `crond` inherits the
 runtime variables injected by EasyPanel, run an immediate backup, then start
 `crond` in the foreground.
 
-Two extra compose files cover the EasyPanel host snapshot: `docker-compose.easypanel.yml`
-(a sandbox that exercises the tar packaging/restore round-trip locally) and
-`examples/docker-compose.easypanel-host.yml` (an illustrative — not recommended —
-containerised deployment; native host execution is preferred, see
-[EasyPanel host backup](#easypanel-host-backup)).
+`docker-compose.easypanel.yml` brings up a real local EasyPanel instance so you
+can exercise `easypanel-backup` / `easypanel-rollup` manually against actual
+host state (see [EasyPanel host backup](#easypanel-host-backup)). Native host
+execution is required for the commands themselves.
 
 Local stack for manual testing:
 
@@ -208,42 +207,17 @@ then fail), so schedule it as root.
 
 ### Scheduling (every 12h)
 
-Match the DB cron containers' cadence with either a host crontab line:
+Match the DB cron containers' cadence with a host crontab line:
 
 ```cron
 # /etc/crontab — run as root, source the env first
 0 */12 * * * root . /etc/easypanel-backup.env; hcli easypanel-backup
 ```
 
-…or a systemd timer:
-
-```ini
-# /etc/systemd/system/easypanel-backup.service
-[Service]
-Type=oneshot
-EnvironmentFile=/etc/easypanel-backup.env
-ExecStart=/usr/bin/hcli easypanel-backup
-```
-
-```ini
-# /etc/systemd/system/easypanel-backup.timer
-[Timer]
-OnCalendar=*-*-* 00/12:00:00
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-```bash
-systemctl enable --now easypanel-backup.timer
-```
-
-Put the `AWS_*` variables in `/etc/easypanel-backup.env`. A containerised form is
-illustrated (not recommended) in
-[`examples/docker-compose.easypanel-host.yml`](./examples/docker-compose.easypanel-host.yml);
-[`docker-compose.easypanel.yml`](./docker-compose.easypanel.yml) is a sandbox that
-exercises only the tar packaging/restore round-trip.
+Put the `AWS_*` variables in `/etc/easypanel-backup.env`. To try the commands
+locally against a real EasyPanel before scheduling them,
+[`docker-compose.easypanel.yml`](./docker-compose.easypanel.yml) brings up a
+local EasyPanel instance you can back up and roll back manually.
 
 ## Testing
 

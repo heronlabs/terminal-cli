@@ -1,62 +1,45 @@
-# EasyPanel backup/rollup — SANDBOX round-trip (manual integration aid)
+# EasyPanel — REAL local instance (manual backup/rollup aid)
 #
-# This compose file is a TEST AID, not part of `pnpm test:unit` and not a
-# deployment artifact. Run it manually with:
+# This compose file is a MANUAL aid, NOT part of `pnpm test:unit` and NOT a
+# deployment artifact. It brings up a real, local EasyPanel instance so you can
+# exercise `hcli easypanel-backup` / `hcli easypanel-rollup` end to end against
+# something that actually populates /etc/easypanel and /var/lib/docker.
 #
-#   docker compose -f docker-compose.easypanel.yml up --build
+#   docker compose -f docker-compose.easypanel.yml up -d
 #
-# What it exercises
-# -----------------
-# It demonstrates only the tar PACKAGING + RESTORE round-trip that
-# `easypanel-backup` / `easypanel-rollup` perform, using a seeded sample
-# layout under /srv/sandbox. It writes a `.tar.gz`, wipes the source, extracts
-# it back, and diffs the result.
+# Then open http://localhost:3000, create a project/service so EasyPanel writes
+# real state, and from the BUILT CLI (`pnpm build` → bin/) produce and inspect a
+# real archive on the host:
 #
-# What it intentionally does NOT do
-# ---------------------------------
-# - It does NOT run `hcli easypanel-backup` / `hcli easypanel-rollup`. Those
-#   commands stop the host Docker daemon (`systemctl stop docker`) and read the
-#   hardcoded host paths (/etc/easypanel, /var/lib/docker/...). Neither the
-#   `systemctl` step nor those real paths can run safely inside a container
-#   managed by that same daemon — they are HOST-ONLY and verified manually on a
-#   real Ubuntu host (see examples/docker-compose.easypanel-host.yml and the
-#   README "EasyPanel host backup" section).
+#   sudo node bin/src/main.js easypanel-backup --local --filename easypanel.tar.gz
+#   tar tzf easypanel.tar.gz | head            # inspect the snapshot
+#   sudo node bin/src/main.js easypanel-rollup --local --filename easypanel.tar.gz
 #
-# In short: this proves the archive create/extract logic; the docker stop/start
-# is host-only.
+# ⚠️ Security & conflicts
+# -----------------------
+# - Mounting /var/run/docker.sock grants the EasyPanel container host-root-
+#   equivalent control of Docker — it can start/stop/replace ANY container on
+#   this host. Only run this on a machine you fully control.
+# - Ports 80, 443 and 3000 are published on the host and may CONFLICT with other
+#   services you already run locally. Stop those first or remap the ports.
+# - `easypanel-backup` / `easypanel-rollup` themselves still run natively on the
+#   host as root (they call `systemctl stop docker` and read the real host
+#   paths); this compose only provides a real EasyPanel state to snapshot.
 
 services:
-  cli-easypanel-sandbox:
-    container_name: cli-easypanel-sandbox
-    platform: linux/amd64
-    build:
-      context: .
-    entrypoint:
-      - bash
-      - -c
-      - |
-        set -euo pipefail
+  easypanel:
+    image: easypanel/easypanel
+    container_name: easypanel
+    command: setup
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '3000:3000'
+    volumes:
+      - /etc/easypanel:/etc/easypanel
+      - /var/run/docker.sock:/var/run/docker.sock
+      - docker-volumes:/var/lib/docker/volumes
 
-        # 1. Seed a sample layout mirroring the real backup roots.
-        mkdir -p /srv/sandbox/etc/easypanel /srv/sandbox/var/lib/docker/volumes
-        echo 'projects: {}' > /srv/sandbox/etc/easypanel/config.yml
-        echo 'dummy volume data' > /srv/sandbox/var/lib/docker/volumes/app.data
-
-        ARCHIVE=/srv/easypanel-sandbox.tar.gz
-
-        # 2. Package (same tar flags as easypanel-backup, sandbox paths).
-        tar czf "$$ARCHIVE" --warning=no-file-changed -C /srv/sandbox etc/easypanel var/lib/docker/volumes 2>/dev/null || true
-        test -s "$$ARCHIVE"
-        echo "Packaged sandbox archive: $$ARCHIVE"
-
-        # 3. Wipe the source to prove the restore actually re-creates it.
-        rm -rf /srv/sandbox/etc /srv/sandbox/var
-
-        # 4. Restore (same tar flags as easypanel-rollup, sandbox target).
-        tar xzf "$$ARCHIVE" -C /srv/sandbox
-        echo "Restored sandbox archive into /srv/sandbox"
-
-        # 5. Verify the round-trip recovered the seeded files.
-        test -f /srv/sandbox/etc/easypanel/config.yml
-        test -f /srv/sandbox/var/lib/docker/volumes/app.data
-        echo "EasyPanel sandbox round-trip OK (packaging + restore verified)"
+volumes:
+  docker-volumes: {}

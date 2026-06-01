@@ -8,11 +8,13 @@ import {MysqlBackupService} from './services/mysql-backup-service';
 import {MysqlRollupService} from './services/mysql-rollup-service';
 import {PsqlBackupService} from './services/psql-backup-service';
 import {PsqlRollupService} from './services/psql-rollup-service';
+import {ScriptLoaderService} from './services/script-loader-service';
 
 const coreModule: ModuleMetadata = {
   imports: [EnvironmentModule, StorageModule],
   providers: [
     Logger,
+    ScriptLoaderService,
     EasypanelBackupService,
     EasypanelRollupService,
     MysqlBackupService,
@@ -21,6 +23,7 @@ const coreModule: ModuleMetadata = {
     PsqlRollupService,
   ],
   exports: [
+    ScriptLoaderService,
     EasypanelBackupService,
     EasypanelRollupService,
     MysqlBackupService,
