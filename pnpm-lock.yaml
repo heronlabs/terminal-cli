@@ -15,8 +15,8 @@ importers:
         specifier: ^3.1045.0
         version: 3.1056.0
       '@heronlabs/env-ssm':
-        specifier: ^0.0.4
-        version: 0.0.4(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/config@4.0.4(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2))(@nestjs/core@11.1.24(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)
+        specifier: ^0.0.8
+        version: 0.0.8(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/config@4.0.4(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2))(@nestjs/core@11.1.24(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)
       '@nestjs/common':
         specifier: ^11.1.18
         version: 11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -501,8 +501,8 @@ packages:
       '@nestjs/common': ^11.0.20
       '@nestjs/core': ^11.0.20
 
-  '@heronlabs/env-ssm@0.0.4':
-    resolution: {integrity: sha512-tbgZ5+PVH5JwgP56w3ravxjq+FYtrA3zekjudE16HODPft8d/NTo6gh9gSe1Tgy+NcYojY3DFSa8M0Wr7O4b5A==}
+  '@heronlabs/env-ssm@0.0.8':
+    resolution: {integrity: sha512-OnJAdczZrEM9uSsqdFmbOAd1GCaxT+gmxlqhgzpFa01+ErL8D4+cUAl2OXsv+087oVj9A2zYxZLkgt3+bXrINg==}
     engines: {node: '>=22', pnpm: '>=10.29.3'}
     peerDependencies:
       '@nestjs/common': ^11.0.0
@@ -4068,7 +4068,7 @@ snapshots:
       '@nestjs/core': 11.1.24(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       lodash: 4.18.1
 
-  '@heronlabs/env-ssm@0.0.4(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/config@4.0.4(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2))(@nestjs/core@11.1.24(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)':
+  '@heronlabs/env-ssm@0.0.8(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/config@4.0.4(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2))(@nestjs/core@11.1.24(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)':
     dependencies:
       '@aws-sdk/client-ssm': 3.1057.0
       '@nestjs/common': 11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2)

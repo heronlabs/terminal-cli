@@ -1,4 +1,4 @@
-import {CoreModule as SsmConfigModule} from '@heronlabs/env-ssm';
+import {SsmConfigModule} from '@heronlabs/env-ssm';
 import {Module, ModuleMetadata} from '@nestjs/common';
 import {ConfigModule} from '@nestjs/config';
 

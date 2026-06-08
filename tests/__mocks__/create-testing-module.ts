@@ -1,6 +1,6 @@
 import {S3Client} from '@aws-sdk/client-s3';
 import {faker} from '@faker-js/faker';
-import {SsmService} from '@heronlabs/env-ssm';
+import {SsmConfigService} from '@heronlabs/env-ssm';
 import {Logger, ModuleMetadata} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 import {Test, TestingModuleBuilder} from '@nestjs/testing';
@@ -24,10 +24,8 @@ export const s3Service: {
 };
 
 export const configService: {
-  get: ViMock;
   getOrThrow: ViMock;
 } = {
-  get: vi.fn(),
   getOrThrow: vi.fn(),
 };
 
@@ -76,7 +74,7 @@ export const createTestingModule = (
     )
     .overrideProvider(ConfigService)
     .useValue(configService)
-    .overrideProvider(SsmService)
+    .overrideProvider(SsmConfigService)
     .useValue(ssmConfigService);
 
   return moduleRef;
