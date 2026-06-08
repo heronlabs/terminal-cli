@@ -7,19 +7,31 @@ export class EnvironmentService {
   async database() {
     const databaseUrl = await this.ssmConfigService.getOrThrow('DB_URL');
 
-    try {
-      const url = new URL(databaseUrl);
+    let url: URL;
 
-      return {
-        host: url.hostname,
-        port: url.port,
-        name: url.pathname.slice(1),
-        user: decodeURIComponent(url.username),
-        password: decodeURIComponent(url.password),
-      };
+    try {
+      url = new URL(databaseUrl);
     } catch {
       throw new Error('Invalid DB_URL');
     }
+
+    const connection = {
+      host: url.hostname,
+      port: url.port,
+      name: url.pathname.slice(1),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+    };
+
+    const missing = (['host', 'name', 'user'] as const).filter(
+      field => connection[field] === '',
+    );
+
+    if (missing.length > 0) {
+      throw new Error(`Invalid DB_URL: missing ${missing.join(', ')}`);
+    }
+
+    return connection;
   }
 
   get storage() {

@@ -94,6 +94,53 @@ describe('Given a service', () => {
 
       await expect(service.database()).rejects.toThrow('Invalid DB_URL');
     });
+
+    it('Should throw when the connection URL is missing the host', async () => {
+      const name = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(`postgres:///${name}`);
+
+      await expect(service.database()).rejects.toThrow(
+        'Invalid DB_URL: missing host',
+      );
+    });
+
+    it('Should throw when the connection URL is missing the name', async () => {
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const user = faker.string.alphanumeric(10);
+      const password = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `postgres://${user}:${password}@${host}:${port}/`,
+      );
+
+      await expect(service.database()).rejects.toThrow(
+        'Invalid DB_URL: missing name',
+      );
+    });
+
+    it('Should throw when the connection URL is missing the user', async () => {
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const name = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `postgres://${host}:${port}/${name}`,
+      );
+
+      await expect(service.database()).rejects.toThrow(
+        'Invalid DB_URL: missing user',
+      );
+    });
+
+    it('Should list every missing field in host, name, user order', async () => {
+      ssmConfigService.getOrThrow.mockResolvedValueOnce('postgres:///');
+
+      await expect(service.database()).rejects.toThrow(
+        'Invalid DB_URL: missing host, name',
+      );
+    });
   });
 
   describe('Given storage resolution', () => {
