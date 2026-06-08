@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PAT }}
 
-      - uses: heronlabs/build-tag-release-action@v2
+      - uses: heronlabs/action-tag-release-build@v2
         id: version
         with:
           github-token: ${{ secrets.PAT }}
