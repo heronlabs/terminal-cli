@@ -5,6 +5,8 @@ import {EnvironmentService} from '../../../../../src/infrastructure/environment/
 import {
   configService,
   createTestingModule,
+  databaseUrl,
+  ssmConfigService,
 } from '../../../../__mocks__/create-testing-module';
 
 describe('Given a service', () => {
@@ -16,34 +18,132 @@ describe('Given a service', () => {
     service = moduleRef.get(EnvironmentService);
   });
 
-  describe('Given environment', () => {
-    it('Should expose the database connection settings as a deep-equal object', () => {
-      const host = faker.string.alpha();
-      const port = faker.string.numeric();
-      const name = faker.string.alpha();
-      const user = faker.string.alpha();
-      const password = faker.string.alpha();
+  describe('Given database resolution', () => {
+    it('Should resolve DB_URL through env-ssm getOrThrow', async () => {
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(databaseUrl);
 
-      configService.getOrThrow.mockImplementation((key: string) => {
-        switch (key) {
-          case 'DB_HOST':
-            return host;
-          case 'DB_PORT':
-            return port;
-          case 'DB_NAME':
-            return name;
-          case 'DB_USER':
-            return user;
-          case 'DB_PASSWORD':
-            return password;
-          default:
-            return key;
-        }
-      });
+      await service.database();
 
-      expect(service.database).toEqual({host, port, name, user, password});
+      expect(ssmConfigService.getOrThrow).toHaveBeenCalledWith('DB_URL');
     });
 
+    it('Should parse the connection URL into the database connection parts', async () => {
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const name = faker.string.alphanumeric(10);
+      const user = faker.string.alphanumeric(10);
+      const password = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `postgres://${user}:${password}@${host}:${port}/${name}`,
+      );
+
+      expect(await service.database()).toEqual({
+        host,
+        port,
+        name,
+        user,
+        password,
+      });
+    });
+
+    it('Should parse a mysql connection URL into the database connection parts', async () => {
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const name = faker.string.alphanumeric(10);
+      const user = faker.string.alphanumeric(10);
+      const password = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `mysql://${user}:${password}@${host}:${port}/${name}`,
+      );
+
+      expect(await service.database()).toEqual({
+        host,
+        port,
+        name,
+        user,
+        password,
+      });
+    });
+
+    it('Should decode percent-encoded credentials in the connection URL', async () => {
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const name = faker.string.alphanumeric(10);
+      const user = `${faker.string.alpha(6)}@acme`;
+      const password = `${faker.string.alpha(6)}:word`;
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `postgres://${encodeURIComponent(user)}:${encodeURIComponent(
+          password,
+        )}@${host}:${port}/${name}`,
+      );
+
+      expect(await service.database()).toEqual({
+        host,
+        port,
+        name,
+        user,
+        password,
+      });
+    });
+
+    it('Should throw when the resolved DB_URL is not a valid connection URL', async () => {
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(faker.string.alpha(12));
+
+      await expect(service.database()).rejects.toThrow('Invalid DB_URL');
+    });
+
+    it('Should throw when the connection URL is missing the host', async () => {
+      const name = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(`postgres:///${name}`);
+
+      await expect(service.database()).rejects.toThrow(
+        'Invalid DB_URL: missing host',
+      );
+    });
+
+    it('Should throw when the connection URL is missing the name', async () => {
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const user = faker.string.alphanumeric(10);
+      const password = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `postgres://${user}:${password}@${host}:${port}/`,
+      );
+
+      await expect(service.database()).rejects.toThrow(
+        'Invalid DB_URL: missing name',
+      );
+    });
+
+    it('Should throw when the connection URL is missing the user', async () => {
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const name = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `postgres://${host}:${port}/${name}`,
+      );
+
+      await expect(service.database()).rejects.toThrow(
+        'Invalid DB_URL: missing user',
+      );
+    });
+
+    it('Should list every missing field in host, name, user order', async () => {
+      ssmConfigService.getOrThrow.mockResolvedValueOnce('postgres:///');
+
+      await expect(service.database()).rejects.toThrow(
+        'Invalid DB_URL: missing host, name',
+      );
+    });
+  });
+
+  describe('Given storage resolution', () => {
     it('Should expose the storage settings as a deep-equal object', () => {
       const bucketName = faker.string.alpha();
 

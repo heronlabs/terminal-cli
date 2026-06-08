@@ -6,7 +6,9 @@ import {S3StorageService} from '../../infrastructure/storage/services/s3-storage
 export abstract class RollupService {
   protected abstract restore(
     filename: string,
-  ): {ok: true; data: {backupFileName: string}} | {ok: false; error: Error};
+  ): Promise<
+    {ok: true; data: {backupFileName: string}} | {ok: false; error: Error}
+  >;
 
   public async run(filename: string, local: boolean) {
     if (!local) {
@@ -19,7 +21,7 @@ export abstract class RollupService {
       }
     }
 
-    const result = this.restore(filename);
+    const result = await this.restore(filename);
 
     if (!result.ok) {
       this.logger.error(result.error.message);

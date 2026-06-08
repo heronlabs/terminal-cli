@@ -104,11 +104,7 @@ All configuration comes from environment variables (see [.env.example](./.env.ex
 
 | Variable | Required | Description |
 |---|---|---|
-| `DB_HOST` | ✅ | Database host |
-| `DB_PORT` | ✅ | Database port |
-| `DB_NAME` | ✅ | Database name |
-| `DB_USER` | ✅ | Database user |
-| `DB_PASSWORD` | ✅ | Database password |
+| `DB_URL` | ✅ | Connection URL (`postgres://`/`mysql://user:pass@host:port/dbname`) or an AWS SSM Parameter Store ARN resolved via [`@heronlabs/env-ssm`](https://www.npmjs.com/package/@heronlabs/env-ssm) |
 | `AWS_S3_BUCKET_NAME` | for S3 | Destination bucket for remote backups |
 | `AWS_REGION` | for S3 | AWS region |
 | `AWS_ACCESS_KEY_ID` | for S3 | AWS credentials (or use an instance role) |

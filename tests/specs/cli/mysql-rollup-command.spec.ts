@@ -13,7 +13,6 @@ import {
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({writeFileSync: vi.fn(), unlinkSync: vi.fn()}));
-
 describe('Given a CLI command', () => {
   let command: MysqlRollupCommand;
 
@@ -40,11 +39,13 @@ describe('Given a CLI command', () => {
     });
 
     it('Should log error when s3Service throws', async () => {
-      s3Service.send.mockRejectedValueOnce(new Error('s3 error'));
+      const message = faker.lorem.words();
+
+      s3Service.send.mockRejectedValueOnce(new Error(message));
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
-      expect(loggerService.error).toHaveBeenCalledWith('s3 error');
+      expect(loggerService.error).toHaveBeenCalledWith(message);
     });
 
     it('Should log error when writeFileSync throws', async () => {
@@ -54,13 +55,15 @@ describe('Given a CLI command', () => {
         },
       });
 
+      const message = faker.lorem.words();
+
       vi.mocked(writeFileSync).mockImplementationOnce(() => {
-        throw new Error('write failed');
+        throw new Error(message);
       });
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
-      expect(loggerService.error).toHaveBeenCalledWith('write failed');
+      expect(loggerService.error).toHaveBeenCalledWith(message);
     });
 
     it('Should log error when execSync throws', async () => {
@@ -83,7 +86,7 @@ describe('Given a CLI command', () => {
 
     it('Should log generic error when s3Service throws a non-Error during download', async () => {
       s3Service.send.mockImplementationOnce(() => {
-        throw 'download error';
+        throw faker.lorem.word();
       });
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});

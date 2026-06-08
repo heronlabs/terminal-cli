@@ -6,13 +6,13 @@ import {cliModule} from '../../../../src/application/cli/cli-module';
 import {MysqlBackupService} from '../../../../src/core/services/mysql-backup-service';
 import {
   createTestingModule,
+  databaseConnection,
   loggerService,
   s3Service,
 } from '../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
-
 describe('Given a service', () => {
   let service: MysqlBackupService;
 
@@ -34,11 +34,11 @@ describe('Given a service', () => {
         {
           env: {
             ...process.env,
-            DB_USER: 'DB_USER',
-            DB_HOST: 'DB_HOST',
-            DB_PORT: 'DB_PORT',
-            DB_NAME: 'DB_NAME',
-            MYSQL_PWD: 'DB_PASSWORD',
+            DB_USER: databaseConnection.user,
+            DB_HOST: databaseConnection.host,
+            DB_PORT: databaseConnection.port,
+            DB_NAME: databaseConnection.name,
+            MYSQL_PWD: databaseConnection.password,
             BACKUP_FILE: filename,
           },
           stdio: ['inherit', 'pipe', 'inherit'],
@@ -81,7 +81,9 @@ describe('Given a service', () => {
 
       expect(loggerService.log).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^Backup MySQL database successfully! Filename: DB_NAME-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.sql\.gz$/,
+          new RegExp(
+            `^Backup MySQL database successfully! Filename: ${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
+          ),
         ),
       );
     });
@@ -167,7 +169,7 @@ describe('Given a service', () => {
 
     it('Should return undefined when dump fails', async () => {
       vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error('boom');
+        throw new Error(faker.lorem.word());
       });
 
       const result = await service.run(true);
@@ -177,7 +179,7 @@ describe('Given a service', () => {
 
     it('Should log the dump error message exactly', async () => {
       vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error('boom');
+        throw new Error(faker.lorem.word());
       });
 
       await service.run(true);
