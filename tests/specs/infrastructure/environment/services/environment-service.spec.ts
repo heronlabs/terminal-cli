@@ -1,5 +1,4 @@
 import {faker} from '@faker-js/faker';
-import {ParameterFactory} from '@heronlabs/env-ssm';
 
 import {environmentModule} from '../../../../../src/infrastructure/environment/environment-module';
 import {EnvironmentService} from '../../../../../src/infrastructure/environment/services/environment-service';
@@ -9,30 +8,22 @@ import {
   ssmGetOrThrow,
 } from '../../../../__mocks__/create-testing-module';
 
-vi.mock('@heronlabs/env-ssm', () => ({
-  ParameterFactory: {make: vi.fn()},
-}));
-
 describe('Given a service', () => {
   let service: EnvironmentService;
 
   beforeEach(async () => {
-    vi.mocked(ParameterFactory.make).mockResolvedValue({
-      getOrThrow: ssmGetOrThrow,
-    } as never);
-
     const moduleRef = await createTestingModule(environmentModule).compile();
 
     service = moduleRef.get(EnvironmentService);
   });
 
   describe('Given database resolution', () => {
-    it('Should resolve DB_URL through env-ssm getOrThrow on init', async () => {
+    it('Should resolve DB_URL through env-ssm getOrThrow', async () => {
       ssmGetOrThrow.mockResolvedValueOnce(
         'postgres://user:pass@host:5432/dbname',
       );
 
-      await service.onModuleInit();
+      await service.database();
 
       expect(ssmGetOrThrow).toHaveBeenCalledWith('DB_URL');
     });
@@ -42,9 +33,7 @@ describe('Given a service', () => {
         'postgres://alice:s3cret@db.internal:6543/analytics',
       );
 
-      await service.onModuleInit();
-
-      expect(service.database).toEqual({
+      expect(await service.database()).toEqual({
         host: 'db.internal',
         port: '6543',
         name: 'analytics',
@@ -58,9 +47,7 @@ describe('Given a service', () => {
         'mysql://bob:hunter2@mysql.host:3306/store',
       );
 
-      await service.onModuleInit();
-
-      expect(service.database).toEqual({
+      expect(await service.database()).toEqual({
         host: 'mysql.host',
         port: '3306',
         name: 'store',
@@ -74,9 +61,7 @@ describe('Given a service', () => {
         'postgres://user%40acme:p%40ss%3Aword@host:5432/dbname',
       );
 
-      await service.onModuleInit();
-
-      expect(service.database).toEqual({
+      expect(await service.database()).toEqual({
         host: 'host',
         port: '5432',
         name: 'dbname',
@@ -88,17 +73,7 @@ describe('Given a service', () => {
     it('Should throw when the resolved DB_URL is not a valid connection URL', async () => {
       ssmGetOrThrow.mockResolvedValueOnce('not-a-valid-url');
 
-      await expect(service.onModuleInit()).rejects.toThrow('Invalid DB_URL');
-    });
-
-    it('Should bootstrap env-ssm with the DB_URL parameter root', async () => {
-      ssmGetOrThrow.mockResolvedValueOnce(
-        'postgres://user:pass@host:5432/dbname',
-      );
-
-      await service.onModuleInit();
-
-      expect(ParameterFactory.make).toHaveBeenCalledWith('DB_URL');
+      await expect(service.database()).rejects.toThrow('Invalid DB_URL');
     });
   });
 

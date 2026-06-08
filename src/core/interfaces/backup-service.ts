@@ -6,10 +6,12 @@ import {S3StorageService} from '../../infrastructure/storage/services/s3-storage
 export abstract class BackupService {
   protected abstract dump(
     filename?: string,
-  ): {ok: true; data: {backupFileName: string}} | {ok: false; error: Error};
+  ): Promise<
+    {ok: true; data: {backupFileName: string}} | {ok: false; error: Error}
+  >;
 
   public async run(local: boolean, filename?: string) {
-    const result = this.dump(filename);
+    const result = await this.dump(filename);
 
     if (!result.ok) {
       this.logger.error(result.error.message);

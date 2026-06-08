@@ -1,4 +1,5 @@
 import {S3Client} from '@aws-sdk/client-s3';
+import {SsmService} from '@heronlabs/env-ssm';
 import {Logger, ModuleMetadata} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 import {Test, TestingModuleBuilder} from '@nestjs/testing';
@@ -62,7 +63,9 @@ export const createTestingModule = (
         .object(),
     )
     .overrideProvider(ConfigService)
-    .useValue(configService);
+    .useValue(configService)
+    .overrideProvider(SsmService)
+    .useValue({getOrThrow: ssmGetOrThrow});
 
   return moduleRef;
 };
