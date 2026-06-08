@@ -5,7 +5,8 @@ import {EnvironmentService} from '../../../../../src/infrastructure/environment/
 import {
   configService,
   createTestingModule,
-  ssmGetOrThrow,
+  databaseUrl,
+  ssmConfigService,
 } from '../../../../__mocks__/create-testing-module';
 
 describe('Given a service', () => {
@@ -19,59 +20,77 @@ describe('Given a service', () => {
 
   describe('Given database resolution', () => {
     it('Should resolve DB_URL through env-ssm getOrThrow', async () => {
-      ssmGetOrThrow.mockResolvedValueOnce(
-        'postgres://user:pass@host:5432/dbname',
-      );
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(databaseUrl);
 
       await service.database();
 
-      expect(ssmGetOrThrow).toHaveBeenCalledWith('DB_URL');
+      expect(ssmConfigService.getOrThrow).toHaveBeenCalledWith('DB_URL');
     });
 
     it('Should parse the connection URL into the database connection parts', async () => {
-      ssmGetOrThrow.mockResolvedValueOnce(
-        'postgres://alice:s3cret@db.internal:6543/analytics',
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const name = faker.string.alphanumeric(10);
+      const user = faker.string.alphanumeric(10);
+      const password = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `postgres://${user}:${password}@${host}:${port}/${name}`,
       );
 
       expect(await service.database()).toEqual({
-        host: 'db.internal',
-        port: '6543',
-        name: 'analytics',
-        user: 'alice',
-        password: 's3cret',
+        host,
+        port,
+        name,
+        user,
+        password,
       });
     });
 
     it('Should parse a mysql connection URL into the database connection parts', async () => {
-      ssmGetOrThrow.mockResolvedValueOnce(
-        'mysql://bob:hunter2@mysql.host:3306/store',
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const name = faker.string.alphanumeric(10);
+      const user = faker.string.alphanumeric(10);
+      const password = faker.string.alphanumeric(10);
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `mysql://${user}:${password}@${host}:${port}/${name}`,
       );
 
       expect(await service.database()).toEqual({
-        host: 'mysql.host',
-        port: '3306',
-        name: 'store',
-        user: 'bob',
-        password: 'hunter2',
+        host,
+        port,
+        name,
+        user,
+        password,
       });
     });
 
     it('Should decode percent-encoded credentials in the connection URL', async () => {
-      ssmGetOrThrow.mockResolvedValueOnce(
-        'postgres://user%40acme:p%40ss%3Aword@host:5432/dbname',
+      const host = faker.internet.domainName();
+      const port = faker.number.int({min: 1024, max: 65535}).toString();
+      const name = faker.string.alphanumeric(10);
+      const user = `${faker.string.alpha(6)}@acme`;
+      const password = `${faker.string.alpha(6)}:word`;
+
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(
+        `postgres://${encodeURIComponent(user)}:${encodeURIComponent(
+          password,
+        )}@${host}:${port}/${name}`,
       );
 
       expect(await service.database()).toEqual({
-        host: 'host',
-        port: '5432',
-        name: 'dbname',
-        user: 'user@acme',
-        password: 'p@ss:word',
+        host,
+        port,
+        name,
+        user,
+        password,
       });
     });
 
     it('Should throw when the resolved DB_URL is not a valid connection URL', async () => {
-      ssmGetOrThrow.mockResolvedValueOnce('not-a-valid-url');
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(faker.string.alpha(12));
 
       await expect(service.database()).rejects.toThrow('Invalid DB_URL');
     });

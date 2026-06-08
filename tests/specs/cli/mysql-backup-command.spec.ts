@@ -18,7 +18,6 @@ describe('Given a CLI command', () => {
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
-    await moduleRef.init();
     command = moduleRef.get(MysqlBackupCommand);
   });
 
@@ -48,15 +47,17 @@ describe('Given a CLI command', () => {
     });
 
     it('Should log error when readFileSync throws', async () => {
+      const message = faker.lorem.words();
+
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       vi.mocked(readFileSync).mockImplementationOnce(() => {
-        throw new Error('read failed');
+        throw new Error(message);
       });
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith('read failed');
+      expect(loggerService.error).toHaveBeenCalledWith(message);
     });
 
     it('Should log error when s3Service throws', async () => {
@@ -66,11 +67,13 @@ describe('Given a CLI command', () => {
         Buffer.from(faker.string.alphanumeric(10)),
       );
 
-      s3Service.send.mockRejectedValueOnce(new Error('s3 error'));
+      const message = faker.lorem.words();
+
+      s3Service.send.mockRejectedValueOnce(new Error(message));
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith('s3 error');
+      expect(loggerService.error).toHaveBeenCalledWith(message);
     });
 
     it('Should log generic error when s3Service throws a non-Error', async () => {
@@ -81,7 +84,7 @@ describe('Given a CLI command', () => {
       );
 
       s3Service.send.mockImplementationOnce(() => {
-        throw 'upload error';
+        throw faker.lorem.word();
       });
 
       await command.run();

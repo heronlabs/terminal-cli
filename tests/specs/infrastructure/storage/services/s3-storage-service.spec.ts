@@ -88,7 +88,7 @@ describe('Given a service', () => {
 
     it('Should return ok false with the original error when send rejects with an Error', async () => {
       const filePath = `${faker.string.alphanumeric(10)}.sql.gz`;
-      const error = new Error('s3 broke');
+      const error = new Error(faker.lorem.words());
 
       vi.mocked(readFileSync).mockReturnValueOnce(
         Buffer.from(faker.string.alphanumeric(10)),
@@ -107,7 +107,7 @@ describe('Given a service', () => {
         Buffer.from(faker.string.alphanumeric(10)),
       );
       s3Service.send.mockImplementationOnce(() => {
-        throw 'nope';
+        throw faker.lorem.word();
       });
 
       const result = await service.upload(filePath);
@@ -187,7 +187,7 @@ describe('Given a service', () => {
 
     it('Should return ok false with the original error when send rejects with an Error', async () => {
       const key = `${faker.string.alphanumeric(10)}.sql.gz`;
-      const error = new Error('s3 broke');
+      const error = new Error(faker.lorem.words());
 
       s3Service.send.mockRejectedValueOnce(error);
 
@@ -200,7 +200,7 @@ describe('Given a service', () => {
       const key = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       s3Service.send.mockImplementationOnce(() => {
-        throw 'nope';
+        throw faker.lorem.word();
       });
 
       const result = await service.download(key);

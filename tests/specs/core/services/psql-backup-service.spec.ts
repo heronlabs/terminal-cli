@@ -6,6 +6,7 @@ import {cliModule} from '../../../../src/application/cli/cli-module';
 import {PsqlBackupService} from '../../../../src/core/services/psql-backup-service';
 import {
   createTestingModule,
+  databaseConnection,
   loggerService,
   s3Service,
 } from '../../../__mocks__/create-testing-module';
@@ -17,7 +18,6 @@ describe('Given a service', () => {
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
-    await moduleRef.init();
     service = moduleRef.get(PsqlBackupService);
   });
 
@@ -34,11 +34,11 @@ describe('Given a service', () => {
         {
           env: {
             ...process.env,
-            PGHOST: 'db_host',
-            PGPORT: '5432',
-            PGDATABASE: 'db_name',
-            PGUSER: 'db_user',
-            PGPASSWORD: 'db_password',
+            PGHOST: databaseConnection.host,
+            PGPORT: databaseConnection.port,
+            PGDATABASE: databaseConnection.name,
+            PGUSER: databaseConnection.user,
+            PGPASSWORD: databaseConnection.password,
             BACKUP_FILE: filename,
           },
           stdio: ['inherit', 'pipe', 'inherit'],
@@ -81,7 +81,9 @@ describe('Given a service', () => {
 
       expect(loggerService.log).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^Backup PostgreSQL database successfully! Filename: db_name-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.sql\.gz$/,
+          new RegExp(
+            `^Backup PostgreSQL database successfully! Filename: ${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
+          ),
         ),
       );
     });
@@ -167,7 +169,7 @@ describe('Given a service', () => {
 
     it('Should return undefined when dump fails', async () => {
       vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error('boom');
+        throw new Error(faker.lorem.word());
       });
 
       const result = await service.run(true);
@@ -177,7 +179,7 @@ describe('Given a service', () => {
 
     it('Should log the dump error message exactly', async () => {
       vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error('boom');
+        throw new Error(faker.lorem.word());
       });
 
       await service.run(true);

@@ -1,4 +1,5 @@
 import {S3Client} from '@aws-sdk/client-s3';
+import {faker} from '@faker-js/faker';
 import {SsmService} from '@heronlabs/env-ssm';
 import {Logger, ModuleMetadata} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
@@ -30,16 +31,27 @@ export const configService: {
   getOrThrow: vi.fn(),
 };
 
-export const ssmGetOrThrow: ViMock = vi.fn();
+export const ssmConfigService: {
+  getOrThrow: ViMock;
+} = {
+  getOrThrow: vi.fn(),
+};
 
-export const DB_URL = 'postgres://db_user:db_password@db_host:5432/db_name';
+export const databaseConnection = {
+  host: faker.internet.domainName(),
+  port: faker.number.int({min: 1024, max: 65535}).toString(),
+  name: faker.string.alphanumeric(10),
+  user: faker.string.alphanumeric(10),
+  password: faker.string.alphanumeric(10),
+};
+
+export const databaseUrl = `postgres://${databaseConnection.user}:${databaseConnection.password}@${databaseConnection.host}:${databaseConnection.port}/${databaseConnection.name}`;
 
 export const createTestingModule = (
   metadata: ModuleMetadata,
 ): TestingModuleBuilder => {
-  configService.get.mockImplementation((key: string) => key);
   configService.getOrThrow.mockImplementation((key: string) => key);
-  ssmGetOrThrow.mockResolvedValue(DB_URL);
+  ssmConfigService.getOrThrow.mockResolvedValue(databaseUrl);
 
   const moduleRef = Test.createTestingModule(metadata);
 
@@ -65,7 +77,7 @@ export const createTestingModule = (
     .overrideProvider(ConfigService)
     .useValue(configService)
     .overrideProvider(SsmService)
-    .useValue({getOrThrow: ssmGetOrThrow});
+    .useValue(ssmConfigService);
 
   return moduleRef;
 };

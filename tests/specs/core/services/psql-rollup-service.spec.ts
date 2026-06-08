@@ -6,6 +6,7 @@ import {cliModule} from '../../../../src/application/cli/cli-module';
 import {PsqlRollupService} from '../../../../src/core/services/psql-rollup-service';
 import {
   createTestingModule,
+  databaseConnection,
   loggerService,
   s3Service,
 } from '../../../__mocks__/create-testing-module';
@@ -21,7 +22,6 @@ describe('Given a service', () => {
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
-    await moduleRef.init();
     service = moduleRef.get(PsqlRollupService);
   });
 
@@ -38,11 +38,11 @@ describe('Given a service', () => {
         {
           env: {
             ...process.env,
-            PGHOST: 'db_host',
-            PGPORT: '5432',
-            PGDATABASE: 'db_name',
-            PGUSER: 'db_user',
-            PGPASSWORD: 'db_password',
+            PGHOST: databaseConnection.host,
+            PGPORT: databaseConnection.port,
+            PGDATABASE: databaseConnection.name,
+            PGUSER: databaseConnection.user,
+            PGPASSWORD: databaseConnection.password,
             BACKUP_FILE: filename,
           },
           stdio: ['inherit', 'pipe', 'inherit'],
@@ -133,7 +133,7 @@ describe('Given a service', () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error('boom');
+        throw new Error(faker.lorem.word());
       });
 
       await service.run(filename, true);

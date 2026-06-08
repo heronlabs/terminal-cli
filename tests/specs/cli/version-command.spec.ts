@@ -34,7 +34,7 @@ describe('Given a CLI command', () => {
 
     it('Should read from a path ending in package.json', async () => {
       vi.mocked(readFileSync).mockReturnValueOnce(
-        JSON.stringify({version: '0'}),
+        JSON.stringify({version: faker.string.numeric(1)}),
       );
 
       await command.run();
