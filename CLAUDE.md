@@ -71,7 +71,7 @@ Triggers on PR to `main`. Three jobs:
 
 ### CD — Releases (`.github/workflows/cd-tags.yml`)
 
-Runs automatically on every push to `main` (defaulting the bump to `patch`), plus manual `workflow_dispatch` to pick major/minor/patch. Bumps a semver tag via `heronlabs/action-tag-release-build@v2`.
+Runs automatically on every push to `main` (defaulting the bump to `patch`), plus manual `workflow_dispatch` to pick major/minor/patch. Bumps a semver tag via `heronlabs/action-tag-release-build@v3`.
 
 | Input | Values |
 |---|---|
