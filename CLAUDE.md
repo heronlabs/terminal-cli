@@ -82,6 +82,10 @@ Runs automatically on every push to `main` (defaulting the bump to `patch`), plu
 |---|---|
 | `spec` | major, minor, patch |
 
+The `publish-npm` job runs `npm publish --access public --provenance` and carries
+`id-token: write` (plus `contents: read`) permission — enabled now that the repo
+is public, since npm only signs sigstore provenance for public source repos.
+
 **Secret:** `PAT` must be set in GitHub repo settings.
 
 ## Docker

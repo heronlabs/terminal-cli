@@ -51,12 +51,8 @@ tsconfig.bin.tsbuildinfo
 .eslintcache
 .stylelintcache
 
-# Claude Code local settings (user-specific, never commit)
-.claude/settings.local.json
-.claude/*.local.md
-
-# Claude Code runtime lock files
-.claude/scheduled_tasks.lock
+# Claude Code / internal tooling (never commit to the public repo)
+.claude/
 
 # pnpm
 # https://pnpm.io/npmrc#store-dir
