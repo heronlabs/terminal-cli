@@ -7,7 +7,7 @@ import {ScriptLoaderService} from './script-loader-service';
 
 @Injectable()
 export class EasypanelRollupService extends RollupService {
-  protected restore(backupFileName: string) {
+  protected async restore(backupFileName: string) {
     if (process.getuid?.() !== 0) {
       return {
         ok: false as const,

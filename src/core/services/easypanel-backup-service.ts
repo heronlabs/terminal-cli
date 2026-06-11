@@ -8,7 +8,7 @@ import {ScriptLoaderService} from './script-loader-service';
 
 @Injectable()
 export class EasypanelBackupService extends BackupService {
-  protected dump(filename?: string) {
+  protected async dump(filename?: string) {
     if (process.getuid?.() !== 0) {
       return {
         ok: false as const,
