@@ -184,11 +184,6 @@ The cron images dump `printenv` to `/etc/environment` so `crond` inherits the
 runtime variables injected by EasyPanel, run an immediate backup, then start
 `crond` in the foreground.
 
-`docker-compose.easypanel.yml` brings up a real local EasyPanel instance so you
-can exercise `easypanel-backup` / `easypanel-rollup` manually against actual
-host state (see [EasyPanel host backup](#easypanel-host-backup)). Native host
-execution is required for the commands themselves.
-
 Local stack for manual testing:
 
 ```bash
@@ -205,17 +200,6 @@ backup fails).
 
 Because it runs `systemctl stop docker` and reads `/var/lib/docker`, it must run
 **natively on the host as root**, not inside a container managed by that daemon.
-
-```bash
-# Install the CLI on the host (Ubuntu 22.04)
-npm i -g @heronlabs/terminal-cli
-
-# Back up to S3 (needs only the AWS_* env — no DB vars)
-sudo AWS_S3_BUCKET_NAME=my-bucket AWS_REGION=us-east-1 \
-     AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... \
-     hcli easypanel-backup
-```
-
 If not run as root the command refuses to start (it will not stop Docker and
 then fail), so schedule it as root.
 
@@ -225,17 +209,20 @@ then fail), so schedule it as root.
 
 ### Scheduling (every 12h)
 
-Match the DB cron containers' cadence with a host crontab line:
+Install the CLI on the host (Ubuntu 22.04) and match the DB cron containers'
+cadence with a host crontab line:
+
+```bash
+npm i -g @heronlabs/terminal-cli
+```
 
 ```cron
 # /etc/crontab — run as root, source the env first
 0 */12 * * * root . /etc/easypanel-backup.env; hcli easypanel-backup
 ```
 
-Put the `AWS_*` variables in `/etc/easypanel-backup.env`. To try the commands
-locally against a real EasyPanel before scheduling them,
-[`docker-compose.easypanel.yml`](./docker-compose.easypanel.yml) brings up a
-local EasyPanel instance you can back up and roll back manually.
+Put the `AWS_*` variables (the `easypanel-*` commands need only `AWS_*`, no DB
+vars) in `/etc/easypanel-backup.env`.
 
 ## Testing
 
