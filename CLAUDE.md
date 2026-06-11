@@ -11,8 +11,9 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 | Command | What it does |
 |---|---|
 | `pnpm build` | `nest build --path tsconfig.bin.json` → `bin/` |
-| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML |
-| `pnpm lint:fix` | `gts fix` + eslint `--fix` on JSON/YAML |
+| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML + shellcheck on `src/**/*.sh` |
+| `pnpm lint:fix` | `gts fix` + eslint `--fix` on JSON/YAML + shellcheck (check-only) |
+| `pnpm lint:shell` | shellcheck on `src/**/*.sh` (config: `.shellcheckrc`; scripts are shebang-less by design) |
 | `pnpm test:unit` | `VITE_CJS_IGNORE_WARNING=true vitest run` |
 | `pnpm test:mutation` | `stryker run stryker.conf.json` |
 | `pnpm dep:cruise` | dependency-cruiser architecture check |
