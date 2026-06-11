@@ -1,6 +1,6 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
-import {PsqlBackupService} from '../../../../core/services/psql-backup-service';
+import {PsqlBackupService} from '../../../../core/services/psql/psql-backup-service';
 import {BackupOptions, BackupOptionsKeys} from './types/backup-options';
 
 @Command({

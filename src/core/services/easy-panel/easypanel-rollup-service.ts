@@ -1,9 +1,9 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {execSync} from 'child_process';
 
-import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
-import {RollupService} from '../interfaces/rollup-service';
-import {ScriptLoaderService} from './script-loader-service';
+import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
+import {RollupService} from '../../interfaces/rollup-service';
+import {ScriptLoaderService} from '../script-loader-service';
 
 @Injectable()
 export class EasypanelRollupService extends RollupService {
@@ -18,7 +18,7 @@ export class EasypanelRollupService extends RollupService {
     }
 
     try {
-      execSync(this.scriptLoader.load('easypanel-rollup'), {
+      execSync(this.scriptLoader.load('easy-panel', 'easypanel-rollup'), {
         env: {
           ...process.env,
           ARCHIVE: backupFileName,

@@ -4,7 +4,7 @@ import {join} from 'path';
 
 @Injectable()
 export class ScriptLoaderService {
-  public load(name: string): string {
-    return readFileSync(join(__dirname, '..', 'scripts', `${name}.sh`), 'utf8');
+  public load(dir: string, name: string): string {
+    return readFileSync(join(__dirname, dir, `${name}.sh`), 'utf8');
   }
 }

@@ -1,6 +1,6 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
-import {PsqlRollupService} from '../../../../core/services/psql-rollup-service';
+import {PsqlRollupService} from '../../../../core/services/psql/psql-rollup-service';
 import {RollupOptions, RollupOptionsKeys} from './types/rollup-options';
 
 @Command({

@@ -35,7 +35,7 @@ a `.tar.gz` rather than a database; they run natively on the host **as root**
 | `src/main.ts` | Bootstrap — `CommandFactory.runApplication(CliModule)` |
 | `src/application/cli/` | `cli-module.ts` + `commands/{backup,rollup,version}/` (nest-commander commands + option types) |
 | `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration) |
-| `src/core/services/` | `{mysql,psql}-{backup,rollup}-service` — engine-specific `dump`/`restore` |
+| `src/core/services/` | One folder per engine — `{easy-panel,mysql,psql}/` with its backup + rollup services (`easy-panel/` also holds its `.sh` scripts); shared `script-loader-service.ts` at the root |
 | `src/infrastructure/environment/` | `EnvironmentService` — typed wrapper over `@nestjs/config` |
 | `src/infrastructure/log/` | `LogModule` — nestjs-pino global logger |
 | `src/infrastructure/storage/` | `S3StorageService` — AWS SDK v3 upload/download |

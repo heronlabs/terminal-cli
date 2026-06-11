@@ -1,9 +1,9 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {execSync} from 'child_process';
 
-import {EnvironmentService} from '../../infrastructure/environment/services/environment-service';
-import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
-import {RollupService} from '../interfaces/rollup-service';
+import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
+import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
+import {RollupService} from '../../interfaces/rollup-service';
 
 @Injectable()
 export class PsqlRollupService extends RollupService {

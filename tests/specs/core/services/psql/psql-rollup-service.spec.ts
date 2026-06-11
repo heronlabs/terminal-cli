@@ -2,14 +2,14 @@ import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
 import {unlinkSync} from 'fs';
 
-import {cliModule} from '../../../../src/application/cli/cli-module';
-import {MysqlRollupService} from '../../../../src/core/services/mysql-rollup-service';
+import {cliModule} from '../../../../../src/application/cli/cli-module';
+import {PsqlRollupService} from '../../../../../src/core/services/psql/psql-rollup-service';
 import {
   createTestingModule,
   databaseConnection,
   loggerService,
   s3Service,
-} from '../../../__mocks__/create-testing-module';
+} from '../../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
@@ -18,15 +18,15 @@ vi.mock('fs', () => ({
   unlinkSync: vi.fn(),
 }));
 describe('Given a service', () => {
-  let service: MysqlRollupService;
+  let service: PsqlRollupService;
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
-    service = moduleRef.get(MysqlRollupService);
+    service = moduleRef.get(PsqlRollupService);
   });
 
-  describe('Given mysql rollup', () => {
-    it('Should call execSync with a constant gunzip|mariadb command and pass all dynamic values via env', async () => {
+  describe('Given psql rollup', () => {
+    it('Should call execSync with a constant gunzip|psql command and pass all dynamic values via env', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -34,15 +34,15 @@ describe('Given a service', () => {
       await service.run(filename, true);
 
       expect(execSync).toHaveBeenCalledWith(
-        'set -o pipefail; gunzip -c "$BACKUP_FILE" | mariadb -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME"',
+        'set -o pipefail; gunzip -c "$BACKUP_FILE" | psql',
         {
           env: {
             ...process.env,
-            DB_USER: databaseConnection.user,
-            DB_HOST: databaseConnection.host,
-            DB_PORT: databaseConnection.port,
-            DB_NAME: databaseConnection.name,
-            MYSQL_PWD: databaseConnection.password,
+            PGHOST: databaseConnection.host,
+            PGPORT: databaseConnection.port,
+            PGDATABASE: databaseConnection.name,
+            PGUSER: databaseConnection.user,
+            PGPASSWORD: databaseConnection.password,
             BACKUP_FILE: filename,
           },
           stdio: ['inherit', 'pipe', 'inherit'],
@@ -59,7 +59,7 @@ describe('Given a service', () => {
       await service.run(malicious, true);
 
       expect(execSync).toHaveBeenCalledWith(
-        'set -o pipefail; gunzip -c "$BACKUP_FILE" | mariadb -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME"',
+        'set -o pipefail; gunzip -c "$BACKUP_FILE" | psql',
         expect.objectContaining({
           env: expect.objectContaining({BACKUP_FILE: malicious}),
         }),
@@ -138,9 +138,7 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(
-        'mariadb restore failed',
-      );
+      expect(loggerService.error).toHaveBeenCalledWith('psql restore failed');
     });
   });
 });

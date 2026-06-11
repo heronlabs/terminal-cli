@@ -2,9 +2,9 @@ import {Injectable, Logger} from '@nestjs/common';
 import {execSync} from 'child_process';
 import {DateTime} from 'luxon';
 
-import {EnvironmentService} from '../../infrastructure/environment/services/environment-service';
-import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
-import {BackupService} from '../interfaces/backup-service';
+import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
+import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
+import {BackupService} from '../../interfaces/backup-service';
 
 @Injectable()
 export class PsqlBackupService extends BackupService {

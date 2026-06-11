@@ -1,6 +1,6 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
-import {MysqlBackupService} from '../../../../core/services/mysql-backup-service';
+import {MysqlBackupService} from '../../../../core/services/mysql/mysql-backup-service';
 import {BackupOptions, BackupOptionsKeys} from './types/backup-options';
 
 @Command({

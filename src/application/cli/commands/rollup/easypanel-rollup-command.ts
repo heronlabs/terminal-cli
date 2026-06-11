@@ -1,6 +1,6 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
-import {EasypanelRollupService} from '../../../../core/services/easypanel-rollup-service';
+import {EasypanelRollupService} from '../../../../core/services/easy-panel/easypanel-rollup-service';
 import {RollupOptions, RollupOptionsKeys} from './types/rollup-options';
 
 @Command({

@@ -1,6 +1,6 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
-import {EasypanelBackupService} from '../../../../core/services/easypanel-backup-service';
+import {EasypanelBackupService} from '../../../../core/services/easy-panel/easypanel-backup-service';
 import {BackupOptions, BackupOptionsKeys} from './types/backup-options';
 
 @Command({

@@ -1,19 +1,24 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {execSync} from 'child_process';
+import {DateTime} from 'luxon';
 
-import {EnvironmentService} from '../../infrastructure/environment/services/environment-service';
-import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
-import {RollupService} from '../interfaces/rollup-service';
+import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
+import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
+import {BackupService} from '../../interfaces/backup-service';
 
 @Injectable()
-export class MysqlRollupService extends RollupService {
-  protected async restore(backupFileName: string) {
+export class MysqlBackupService extends BackupService {
+  protected async dump(filename?: string) {
     const {host, port, name, user, password} =
       await this.environmentService.database();
 
+    const timestamp = DateTime.utc().toFormat("yyyy-MM-dd'T'HH-mm-ss'Z'");
+
+    const backupFileName = filename ?? `${name}-${timestamp}.sql.gz`;
+
     try {
       execSync(
-        'set -o pipefail; gunzip -c "$BACKUP_FILE" | mariadb -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME"',
+        'set -o pipefail; mariadb-dump -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" | gzip > "$BACKUP_FILE"',
         {
           env: {
             ...process.env,
@@ -29,9 +34,13 @@ export class MysqlRollupService extends RollupService {
         },
       );
 
+      this.logger.log(
+        `Backup MySQL database successfully! Filename: ${backupFileName}`,
+      );
+
       return {ok: true as const, data: {backupFileName}};
     } catch {
-      return {ok: false as const, error: new Error('mariadb restore failed')};
+      return {ok: false as const, error: new Error('mariadb-dump failed')};
     }
   }
 

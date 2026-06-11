@@ -2,9 +2,9 @@ import {Injectable, Logger} from '@nestjs/common';
 import {execSync} from 'child_process';
 import {DateTime} from 'luxon';
 
-import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
-import {BackupService} from '../interfaces/backup-service';
-import {ScriptLoaderService} from './script-loader-service';
+import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
+import {BackupService} from '../../interfaces/backup-service';
+import {ScriptLoaderService} from '../script-loader-service';
 
 @Injectable()
 export class EasypanelBackupService extends BackupService {
@@ -23,7 +23,7 @@ export class EasypanelBackupService extends BackupService {
     const backupFileName = filename ?? `easypanel-${timestamp}.tar.gz`;
 
     try {
-      execSync(this.scriptLoader.load('easypanel-backup'), {
+      execSync(this.scriptLoader.load('easy-panel', 'easypanel-backup'), {
         env: {
           ...process.env,
           ARCHIVE: backupFileName,

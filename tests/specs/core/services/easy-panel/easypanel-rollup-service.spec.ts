@@ -2,14 +2,14 @@ import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
 import {unlinkSync} from 'fs';
 
-import {cliModule} from '../../../../src/application/cli/cli-module';
-import {EasypanelRollupService} from '../../../../src/core/services/easypanel-rollup-service';
-import {ScriptLoaderService} from '../../../../src/core/services/script-loader-service';
+import {cliModule} from '../../../../../src/application/cli/cli-module';
+import {EasypanelRollupService} from '../../../../../src/core/services/easy-panel/easypanel-rollup-service';
+import {ScriptLoaderService} from '../../../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   loggerService,
   s3Service,
-} from '../../../__mocks__/create-testing-module';
+} from '../../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
@@ -43,14 +43,14 @@ describe('Given a service', () => {
   });
 
   describe('Given easypanel rollup', () => {
-    it('Should load the easypanel-rollup script by name', async () => {
+    it('Should load the easypanel-rollup script from the easy-panel dir', async () => {
       const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(filename, true);
 
-      expect(scriptLoader.load).toHaveBeenCalledWith('easypanel-rollup');
+      expect(scriptLoader.load).toHaveBeenCalledWith('easy-panel', 'easypanel-rollup');
     });
 
     it('Should call execSync with the loaded script and pass the archive path via env', async () => {
