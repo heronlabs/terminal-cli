@@ -50,7 +50,10 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(scriptLoader.load).toHaveBeenCalledWith('easy-panel', 'easypanel-rollup');
+      expect(scriptLoader.load).toHaveBeenCalledWith(
+        'easy-panel',
+        'easypanel-rollup',
+      );
     });
 
     it('Should call execSync with the loaded script and pass the archive path via env', async () => {
