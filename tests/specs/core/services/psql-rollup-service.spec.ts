@@ -6,6 +6,7 @@ import {cliModule} from '../../../../src/application/cli/cli-module';
 import {PsqlRollupService} from '../../../../src/core/services/psql-rollup-service';
 import {
   createTestingModule,
+  databaseConnection,
   loggerService,
   s3Service,
 } from '../../../__mocks__/create-testing-module';
@@ -16,7 +17,6 @@ vi.mock('fs', () => ({
   readFileSync: vi.fn(),
   unlinkSync: vi.fn(),
 }));
-
 describe('Given a service', () => {
   let service: PsqlRollupService;
 
@@ -38,11 +38,11 @@ describe('Given a service', () => {
         {
           env: {
             ...process.env,
-            PGHOST: 'DB_HOST',
-            PGPORT: 'DB_PORT',
-            PGDATABASE: 'DB_NAME',
-            PGUSER: 'DB_USER',
-            PGPASSWORD: 'DB_PASSWORD',
+            PGHOST: databaseConnection.host,
+            PGPORT: databaseConnection.port,
+            PGDATABASE: databaseConnection.name,
+            PGUSER: databaseConnection.user,
+            PGPASSWORD: databaseConnection.password,
             BACKUP_FILE: filename,
           },
           stdio: ['inherit', 'pipe', 'inherit'],
@@ -133,7 +133,7 @@ describe('Given a service', () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error('boom');
+        throw new Error(faker.lorem.word());
       });
 
       await service.run(filename, true);

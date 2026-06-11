@@ -7,8 +7,9 @@ import {RollupService} from '../interfaces/rollup-service';
 
 @Injectable()
 export class PsqlRollupService extends RollupService {
-  protected restore(backupFileName: string) {
-    const {host, port, name, user, password} = this.environmentService.database;
+  protected async restore(backupFileName: string) {
+    const {host, port, name, user, password} =
+      await this.environmentService.database();
 
     try {
       execSync('set -o pipefail; gunzip -c "$BACKUP_FILE" | psql', {

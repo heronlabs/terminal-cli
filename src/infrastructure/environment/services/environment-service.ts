@@ -1,16 +1,37 @@
+import {SsmConfigService} from '@heronlabs/env-ssm';
 import {Injectable} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 
 @Injectable()
 export class EnvironmentService {
-  get database() {
-    return {
-      host: this.configService.getOrThrow<string>('DB_HOST'),
-      port: this.configService.getOrThrow<string>('DB_PORT'),
-      name: this.configService.getOrThrow<string>('DB_NAME'),
-      user: this.configService.getOrThrow<string>('DB_USER'),
-      password: this.configService.getOrThrow<string>('DB_PASSWORD'),
+  async database() {
+    const databaseUrl = await this.ssmConfigService.getOrThrow('DB_URL');
+
+    let url: URL;
+
+    try {
+      url = new URL(databaseUrl);
+    } catch {
+      throw new Error('Invalid DB_URL');
+    }
+
+    const connection = {
+      host: url.hostname,
+      port: url.port,
+      name: url.pathname.slice(1),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
     };
+
+    const missing = (['host', 'name', 'user'] as const).filter(
+      field => connection[field] === '',
+    );
+
+    if (missing.length > 0) {
+      throw new Error(`Invalid DB_URL: missing ${missing.join(', ')}`);
+    }
+
+    return connection;
   }
 
   get storage() {
@@ -19,5 +40,8 @@ export class EnvironmentService {
     };
   }
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly ssmConfigService: SsmConfigService,
+  ) {}
 }

@@ -8,8 +8,9 @@ import {BackupService} from '../interfaces/backup-service';
 
 @Injectable()
 export class MysqlBackupService extends BackupService {
-  protected dump(filename?: string) {
-    const {host, port, name, user, password} = this.environmentService.database;
+  protected async dump(filename?: string) {
+    const {host, port, name, user, password} =
+      await this.environmentService.database();
 
     const timestamp = DateTime.utc().toFormat("yyyy-MM-dd'T'HH-mm-ss'Z'");
 

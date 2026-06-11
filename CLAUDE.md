@@ -49,9 +49,15 @@ a `.tar.gz` rather than a database; they run natively on the host **as root**
 
 ## Configuration
 
-Env vars (see `.env.example`): `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`,
-`DB_PASSWORD`, and for S3 `AWS_S3_BUCKET_NAME`, `AWS_REGION`,
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
+Env vars (see `.env.example`): `DB_URL` (a `postgres://`/`mysql://`
+connection URL, or an AWS SSM Parameter Store ARN resolved via
+`@heronlabs/env-ssm`), and for S3 `AWS_S3_BUCKET_NAME`, `AWS_REGION`,
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. `DB_URL` is resolved through an
+injected `SsmConfigService` (env-ssm v2 no longer ships a NestJS module, so
+`EnvironmentModule` provides it via `SsmConfigFactory.make()`) and parsed by the
+async `EnvironmentService.database()`
+into the host/port/name/user/password the dump/restore services pass to engine
+subprocesses via env vars.
 
 ## Testing
 
@@ -76,11 +82,15 @@ Triggers on PR to `main`. Three jobs:
 
 ### CD — Releases (`.github/workflows/cd-tags.yml`)
 
-Runs automatically on every push to `main` (defaulting the bump to `patch`), plus manual `workflow_dispatch` to pick major/minor/patch. Bumps a semver tag via `heronlabs/build-tag-release-action@v2`.
+Runs automatically on every push to `main` (defaulting the bump to `patch`), plus manual `workflow_dispatch` to pick major/minor/patch. Bumps a semver tag via `heronlabs/action-tag-release-build@v3`.
 
 | Input | Values |
 |---|---|
 | `spec` | major, minor, patch |
+
+The `publish-npm` job runs `npm publish --access public --provenance` and carries
+`id-token: write` (plus `contents: read`) permission — enabled now that the repo
+is public, since npm only signs sigstore provenance for public source repos.
 
 **Secret:** `PAT` must be set in GitHub repo settings.
 

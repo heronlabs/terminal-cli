@@ -1,5 +1,7 @@
 # 🪶 terminal-cli — Heron CLI (`hcli`)
 
+[![npm version](https://img.shields.io/npm/v/@heronlabs/terminal-cli.svg)](https://www.npmjs.com/package/@heronlabs/terminal-cli)
+[![license](https://img.shields.io/npm/l/@heronlabs/terminal-cli.svg)](./LICENSE)
 [![CI](https://github.com/heronlabs/terminal-cli/actions/workflows/ci-cli.yml/badge.svg)](https://github.com/heronlabs/terminal-cli/actions/workflows/ci-cli.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.x-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.x-e0234e.svg)](https://nestjs.com/)
@@ -14,6 +16,7 @@ AWS S3, and Luxon. Designed to run as a scheduled cron container on EasyPanel.
 ## Table of Contents
 
 - [Why This Project](#why-this-project)
+- [Install](#install)
 - [Quick Start](#quick-start)
 - [Commands](#commands)
 - [Configuration](#configuration)
@@ -32,6 +35,25 @@ Scheduled, type-safe database backups with a single binary:
 - **Cron-ready containers** — purpose-built Dockerfiles run a backup on start and every 12 hours.
 - **100% tested** — v8 coverage + Stryker mutation testing, both at 100% thresholds.
 
+## Install
+
+`hcli` is a global CLI binary. Install it globally to put `hcli` on your `PATH`:
+
+```bash
+npm i -g @heronlabs/terminal-cli
+# or: pnpm add -g @heronlabs/terminal-cli
+```
+
+Then run any command:
+
+```bash
+hcli version
+hcli psql-backup
+```
+
+You also need the database client tools for the engine you back up: `pg_dump` /
+`psql` for PostgreSQL, `mysqldump` / `mysql` for MySQL.
+
 ## Quick Start
 
 ### Prerequisites
@@ -43,7 +65,7 @@ Scheduled, type-safe database backups with a single binary:
 | `pg_dump` / `psql` | — | PostgreSQL backup/restore |
 | `mysqldump` / `mysql` | — | MySQL backup/restore |
 
-### Installation
+### From source (development)
 
 ```bash
 git clone https://github.com/heronlabs/terminal-cli.git
@@ -115,11 +137,7 @@ All configuration comes from environment variables (see [.env.example](./.env.ex
 
 | Variable | Required | Description |
 |---|---|---|
-| `DB_HOST` | ✅ | Database host |
-| `DB_PORT` | ✅ | Database port |
-| `DB_NAME` | ✅ | Database name |
-| `DB_USER` | ✅ | Database user |
-| `DB_PASSWORD` | ✅ | Database password |
+| `DB_URL` | ✅ | Connection URL (`postgres://`/`mysql://user:pass@host:port/dbname`) or an AWS SSM Parameter Store ARN resolved via [`@heronlabs/env-ssm`](https://www.npmjs.com/package/@heronlabs/env-ssm) |
 | `AWS_S3_BUCKET_NAME` | for S3 | Destination bucket for remote backups |
 | `AWS_REGION` | for S3 | AWS region |
 | `AWS_ACCESS_KEY_ID` | for S3 | AWS credentials (or use an instance role) |
