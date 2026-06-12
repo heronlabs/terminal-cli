@@ -4,6 +4,7 @@ import {readFileSync, unlinkSync} from 'fs';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {PsqlBackupService} from '../../../../../src/core/services/psql/psql-backup-service';
+import {ScriptLoaderService} from '../../../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   databaseConnection,
@@ -13,38 +14,67 @@ import {
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
+
+const BACKUP_SCRIPT = `loaded-psql-backup-${faker.string.alphanumeric(8)}.sh`;
+
 describe('Given a service', () => {
   let service: PsqlBackupService;
 
+  const scriptLoader = {load: vi.fn()};
+
   beforeEach(async () => {
-    const moduleRef = await createTestingModule(cliModule).compile();
+    scriptLoader.load.mockReturnValue(BACKUP_SCRIPT);
+
+    const moduleRef = await createTestingModule(cliModule)
+      .overrideProvider(ScriptLoaderService)
+      .useValue(scriptLoader)
+      .compile();
     service = moduleRef.get(PsqlBackupService);
   });
 
   describe('Given psql backup', () => {
-    it('Should call execSync with a constant pg_dump command and pass all dynamic values via env', async () => {
+    it('Should load the psql-backup script from the psql dir', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(true, filename);
 
-      expect(execSync).toHaveBeenCalledWith(
-        'set -o pipefail; pg_dump | gzip > "$BACKUP_FILE"',
-        {
-          env: {
-            ...process.env,
-            PGHOST: databaseConnection.host,
-            PGPORT: databaseConnection.port,
-            PGDATABASE: databaseConnection.name,
-            PGUSER: databaseConnection.user,
-            PGPASSWORD: databaseConnection.password,
-            BACKUP_FILE: filename,
-          },
-          stdio: ['inherit', 'pipe', 'inherit'],
-          shell: '/bin/bash',
-        },
+      expect(scriptLoader.load).toHaveBeenCalledWith('psql', 'psql-backup');
+    });
+
+    it('Should keep the psql-backup script constant with env-var indirection only', async () => {
+      const {readFileSync: readActual} =
+        await vi.importActual<typeof import('fs')>('fs');
+
+      const script = readActual(
+        'src/core/services/psql/psql-backup.sh',
+        'utf8',
       );
+
+      expect(script).toBe('set -o pipefail\npg_dump | gzip > "$BACKUP_FILE"\n');
+    });
+
+    it('Should call execSync with the loaded script and pass all dynamic values via env', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true, filename);
+
+      expect(execSync).toHaveBeenCalledWith(BACKUP_SCRIPT, {
+        env: {
+          ...process.env,
+          PGHOST: databaseConnection.host,
+          PGPORT: databaseConnection.port,
+          PGDATABASE: databaseConnection.name,
+          PGUSER: databaseConnection.user,
+          PGPASSWORD: databaseConnection.password,
+          BACKUP_FILE: filename,
+        },
+        stdio: ['inherit', 'pipe', 'inherit'],
+        shell: '/bin/bash',
+      });
     });
 
     it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
@@ -55,7 +85,7 @@ describe('Given a service', () => {
       await service.run(true, malicious);
 
       expect(execSync).toHaveBeenCalledWith(
-        'set -o pipefail; pg_dump | gzip > "$BACKUP_FILE"',
+        BACKUP_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({BACKUP_FILE: malicious}),
         }),

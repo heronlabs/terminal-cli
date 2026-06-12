@@ -4,6 +4,7 @@ import {execSync} from 'child_process';
 import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
 import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
 import {RollupService} from '../../interfaces/rollup-service';
+import {ScriptLoaderService} from '../script-loader-service';
 
 @Injectable()
 export class PsqlRollupService extends RollupService {
@@ -12,7 +13,7 @@ export class PsqlRollupService extends RollupService {
       await this.environmentService.database();
 
     try {
-      execSync('set -o pipefail; gunzip -c "$BACKUP_FILE" | psql', {
+      execSync(this.scriptLoader.load('psql', 'psql-rollup'), {
         env: {
           ...process.env,
           PGHOST: host,
@@ -36,6 +37,7 @@ export class PsqlRollupService extends RollupService {
     protected readonly logger: Logger,
     private readonly environmentService: EnvironmentService,
     protected readonly s3StorageService: S3StorageService,
+    private readonly scriptLoader: ScriptLoaderService,
   ) {
     super(logger, s3StorageService);
   }

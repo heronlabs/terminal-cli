@@ -5,6 +5,7 @@ import {writeFileSync} from 'fs';
 import {cliModule} from '../../../src/application/cli/cli-module';
 import {PsqlRollupCommand} from '../../../src/application/cli/commands/rollup/psql-rollup-command';
 import {RollupOptionsKeys} from '../../../src/application/cli/commands/rollup/types/rollup-options';
+import {ScriptLoaderService} from '../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   loggerService,
@@ -18,8 +19,13 @@ describe('Given a CLI command', () => {
 
   const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
+  const scriptLoader = {load: vi.fn(() => 'loaded-script')};
+
   beforeEach(async () => {
-    const moduleRef = await createTestingModule(cliModule).compile();
+    const moduleRef = await createTestingModule(cliModule)
+      .overrideProvider(ScriptLoaderService)
+      .useValue(scriptLoader)
+      .compile();
     command = moduleRef.get(PsqlRollupCommand);
   });
 

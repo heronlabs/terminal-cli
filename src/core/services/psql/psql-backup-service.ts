@@ -5,6 +5,7 @@ import {DateTime} from 'luxon';
 import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
 import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
 import {BackupService} from '../../interfaces/backup-service';
+import {ScriptLoaderService} from '../script-loader-service';
 
 @Injectable()
 export class PsqlBackupService extends BackupService {
@@ -17,7 +18,7 @@ export class PsqlBackupService extends BackupService {
     const backupFileName = filename ?? `${name}-${timestamp}.sql.gz`;
 
     try {
-      execSync('set -o pipefail; pg_dump | gzip > "$BACKUP_FILE"', {
+      execSync(this.scriptLoader.load('psql', 'psql-backup'), {
         env: {
           ...process.env,
           PGHOST: host,
@@ -45,6 +46,7 @@ export class PsqlBackupService extends BackupService {
     protected readonly logger: Logger,
     private readonly environmentService: EnvironmentService,
     protected readonly s3StorageService: S3StorageService,
+    private readonly scriptLoader: ScriptLoaderService,
   ) {
     super(logger, s3StorageService);
   }

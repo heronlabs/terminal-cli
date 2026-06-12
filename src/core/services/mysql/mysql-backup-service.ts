@@ -5,6 +5,7 @@ import {DateTime} from 'luxon';
 import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
 import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
 import {BackupService} from '../../interfaces/backup-service';
+import {ScriptLoaderService} from '../script-loader-service';
 
 @Injectable()
 export class MysqlBackupService extends BackupService {
@@ -17,22 +18,19 @@ export class MysqlBackupService extends BackupService {
     const backupFileName = filename ?? `${name}-${timestamp}.sql.gz`;
 
     try {
-      execSync(
-        'set -o pipefail; mariadb-dump -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" | gzip > "$BACKUP_FILE"',
-        {
-          env: {
-            ...process.env,
-            DB_USER: user,
-            DB_HOST: host,
-            DB_PORT: port,
-            DB_NAME: name,
-            MYSQL_PWD: password,
-            BACKUP_FILE: backupFileName,
-          },
-          stdio: ['inherit', 'pipe', 'inherit'],
-          shell: '/bin/bash',
+      execSync(this.scriptLoader.load('mysql', 'mysql-backup'), {
+        env: {
+          ...process.env,
+          DB_USER: user,
+          DB_HOST: host,
+          DB_PORT: port,
+          DB_NAME: name,
+          MYSQL_PWD: password,
+          BACKUP_FILE: backupFileName,
         },
-      );
+        stdio: ['inherit', 'pipe', 'inherit'],
+        shell: '/bin/bash',
+      });
 
       this.logger.log(
         `Backup MySQL database successfully! Filename: ${backupFileName}`,
@@ -48,6 +46,7 @@ export class MysqlBackupService extends BackupService {
     protected readonly logger: Logger,
     private readonly environmentService: EnvironmentService,
     protected readonly s3StorageService: S3StorageService,
+    private readonly scriptLoader: ScriptLoaderService,
   ) {
     super(logger, s3StorageService);
   }

@@ -5,6 +5,7 @@ import {readFileSync} from 'fs';
 import {cliModule} from '../../../src/application/cli/cli-module';
 import {MysqlBackupCommand} from '../../../src/application/cli/commands/backup/mysql-backup-command';
 import {BackupOptionsKeys} from '../../../src/application/cli/commands/backup/types/backup-options';
+import {ScriptLoaderService} from '../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   loggerService,
@@ -16,8 +17,13 @@ vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
 describe('Given a CLI command', () => {
   let command: MysqlBackupCommand;
 
+  const scriptLoader = {load: vi.fn(() => 'loaded-script')};
+
   beforeEach(async () => {
-    const moduleRef = await createTestingModule(cliModule).compile();
+    const moduleRef = await createTestingModule(cliModule)
+      .overrideProvider(ScriptLoaderService)
+      .useValue(scriptLoader)
+      .compile();
     command = moduleRef.get(MysqlBackupCommand);
   });
 
