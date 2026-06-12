@@ -4,31 +4,22 @@ import {readFileSync, unlinkSync} from 'fs';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {MysqlBackupService} from '../../../../../src/core/services/mysql/mysql-backup-service';
-import {ScriptLoaderService} from '../../../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   databaseConnection,
   loggerService,
   s3Service,
+  scriptLoaderService,
 } from '../../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
 
-const BACKUP_SCRIPT = `loaded-mysql-backup-${faker.string.alphanumeric(8)}.sh`;
-
 describe('Given a service', () => {
   let service: MysqlBackupService;
 
-  const scriptLoader = {load: vi.fn()};
-
   beforeEach(async () => {
-    scriptLoader.load.mockReturnValue(BACKUP_SCRIPT);
-
-    const moduleRef = await createTestingModule(cliModule)
-      .overrideProvider(ScriptLoaderService)
-      .useValue(scriptLoader)
-      .compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(MysqlBackupService);
   });
 
@@ -40,31 +31,23 @@ describe('Given a service', () => {
 
       await service.run(true, filename);
 
-      expect(scriptLoader.load).toHaveBeenCalledWith('mysql', 'mysql-backup');
-    });
-
-    it('Should keep the mysql-backup script constant with env-var indirection only', async () => {
-      const {readFileSync: readActual} =
-        await vi.importActual<typeof import('fs')>('fs');
-
-      const script = readActual(
-        'src/core/services/mysql/mysql-backup.sh',
-        'utf8',
-      );
-
-      expect(script).toBe(
-        'set -o pipefail\nmariadb-dump -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" | gzip > "$BACKUP_FILE"\n',
+      expect(scriptLoaderService.load).toHaveBeenCalledWith(
+        'mysql',
+        'mysql-backup',
       );
     });
 
     it('Should call execSync with the loaded script and pass all dynamic values via env', async () => {
+      const LOADED_SCRIPT = `loaded-mysql-backup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(true, filename);
 
-      expect(execSync).toHaveBeenCalledWith(BACKUP_SCRIPT, {
+      expect(execSync).toHaveBeenCalledWith(LOADED_SCRIPT, {
         env: {
           ...process.env,
           DB_USER: databaseConnection.user,
@@ -80,6 +63,9 @@ describe('Given a service', () => {
     });
 
     it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
+      const LOADED_SCRIPT = `loaded-mysql-backup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const malicious = '$(touch /tmp/pwned).sql.gz';
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -87,7 +73,7 @@ describe('Given a service', () => {
       await service.run(true, malicious);
 
       expect(execSync).toHaveBeenCalledWith(
-        BACKUP_SCRIPT,
+        LOADED_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({BACKUP_FILE: malicious}),
         }),

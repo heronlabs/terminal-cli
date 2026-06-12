@@ -2,9 +2,7 @@ import {faker} from '@faker-js/faker';
 import {readFileSync} from 'fs';
 import {join} from 'path';
 
-import {cliModule} from '../../../../src/application/cli/cli-module';
 import {ScriptLoaderService} from '../../../../src/core/services/script-loader-service';
-import {createTestingModule} from '../../../__mocks__/create-testing-module';
 
 vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
 
@@ -13,9 +11,8 @@ const servicesDir = join(process.cwd(), 'src', 'core', 'services');
 describe('Given a service', () => {
   let service: ScriptLoaderService;
 
-  beforeEach(async () => {
-    const moduleRef = await createTestingModule(cliModule).compile();
-    service = moduleRef.get(ScriptLoaderService);
+  beforeEach(() => {
+    service = new ScriptLoaderService();
   });
 
   describe('Given load', () => {

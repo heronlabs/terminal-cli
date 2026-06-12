@@ -5,7 +5,6 @@ import {writeFileSync} from 'fs';
 import {cliModule} from '../../../src/application/cli/cli-module';
 import {EasypanelRollupCommand} from '../../../src/application/cli/commands/rollup/easypanel-rollup-command';
 import {RollupOptionsKeys} from '../../../src/application/cli/commands/rollup/types/rollup-options';
-import {ScriptLoaderService} from '../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   loggerService,
@@ -20,17 +19,12 @@ describe('Given a CLI command', () => {
 
   const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
 
-  const scriptLoader = {load: vi.fn(() => 'loaded-script')};
-
   const originalGetuid = process.getuid;
 
   beforeEach(async () => {
     process.getuid = vi.fn(() => 0);
 
-    const moduleRef = await createTestingModule(cliModule)
-      .overrideProvider(ScriptLoaderService)
-      .useValue(scriptLoader)
-      .compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     command = moduleRef.get(EasypanelRollupCommand);
   });
 

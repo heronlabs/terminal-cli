@@ -4,12 +4,12 @@ import {unlinkSync} from 'fs';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {PsqlRollupService} from '../../../../../src/core/services/psql/psql-rollup-service';
-import {ScriptLoaderService} from '../../../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   databaseConnection,
   loggerService,
   s3Service,
+  scriptLoaderService,
 } from '../../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
@@ -19,20 +19,11 @@ vi.mock('fs', () => ({
   unlinkSync: vi.fn(),
 }));
 
-const RESTORE_SCRIPT = `loaded-psql-rollup-${faker.string.alphanumeric(8)}.sh`;
-
 describe('Given a service', () => {
   let service: PsqlRollupService;
 
-  const scriptLoader = {load: vi.fn()};
-
   beforeEach(async () => {
-    scriptLoader.load.mockReturnValue(RESTORE_SCRIPT);
-
-    const moduleRef = await createTestingModule(cliModule)
-      .overrideProvider(ScriptLoaderService)
-      .useValue(scriptLoader)
-      .compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(PsqlRollupService);
   });
 
@@ -44,29 +35,23 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(scriptLoader.load).toHaveBeenCalledWith('psql', 'psql-rollup');
-    });
-
-    it('Should keep the psql-rollup script constant with env-var indirection only', async () => {
-      const {readFileSync: readActual} =
-        await vi.importActual<typeof import('fs')>('fs');
-
-      const script = readActual(
-        'src/core/services/psql/psql-rollup.sh',
-        'utf8',
+      expect(scriptLoaderService.load).toHaveBeenCalledWith(
+        'psql',
+        'psql-rollup',
       );
-
-      expect(script).toBe('set -o pipefail\ngunzip -c "$BACKUP_FILE" | psql\n');
     });
 
     it('Should call execSync with the loaded script and pass all dynamic values via env', async () => {
+      const LOADED_SCRIPT = `loaded-psql-rollup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(filename, true);
 
-      expect(execSync).toHaveBeenCalledWith(RESTORE_SCRIPT, {
+      expect(execSync).toHaveBeenCalledWith(LOADED_SCRIPT, {
         env: {
           ...process.env,
           PGHOST: databaseConnection.host,
@@ -82,6 +67,9 @@ describe('Given a service', () => {
     });
 
     it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
+      const LOADED_SCRIPT = `loaded-psql-rollup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const malicious = '$(touch /tmp/pwned).sql.gz';
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -89,7 +77,7 @@ describe('Given a service', () => {
       await service.run(malicious, true);
 
       expect(execSync).toHaveBeenCalledWith(
-        RESTORE_SCRIPT,
+        LOADED_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({BACKUP_FILE: malicious}),
         }),

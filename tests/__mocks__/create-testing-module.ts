@@ -7,6 +7,8 @@ import {Test, TestingModuleBuilder} from '@nestjs/testing';
 import {Mock} from 'moq.ts';
 import {Mock as ViMock, vi} from 'vitest';
 
+import {ScriptLoaderService} from '../../src/core/services/script-loader-service';
+
 export const loggerService: {
   log: ViMock;
   warn: ViMock;
@@ -15,6 +17,12 @@ export const loggerService: {
   log: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
+};
+
+export const scriptLoaderService: {
+  load: ViMock;
+} = {
+  load: vi.fn(),
 };
 
 export const s3Service: {
@@ -75,7 +83,9 @@ export const createTestingModule = (
     .overrideProvider(ConfigService)
     .useValue(configService)
     .overrideProvider(SsmConfigService)
-    .useValue(ssmConfigService);
+    .useValue(ssmConfigService)
+    .overrideProvider(ScriptLoaderService)
+    .useValue(scriptLoaderService);
 
   return moduleRef;
 };

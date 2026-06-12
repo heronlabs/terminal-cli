@@ -4,33 +4,25 @@ import {readFileSync, unlinkSync} from 'fs';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {EasypanelBackupService} from '../../../../../src/core/services/easy-panel/easypanel-backup-service';
-import {ScriptLoaderService} from '../../../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   loggerService,
   s3Service,
+  scriptLoaderService,
 } from '../../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
 
-const BACKUP_SCRIPT = `loaded-easypanel-backup-${faker.string.alphanumeric(8)}.sh`;
-
 describe('Given a service', () => {
   let service: EasypanelBackupService;
-
-  const scriptLoader = {load: vi.fn()};
 
   const originalGetuid = process.getuid;
 
   beforeEach(async () => {
     process.getuid = vi.fn(() => 0);
-    scriptLoader.load.mockReturnValue(BACKUP_SCRIPT);
 
-    const moduleRef = await createTestingModule(cliModule)
-      .overrideProvider(ScriptLoaderService)
-      .useValue(scriptLoader)
-      .compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(EasypanelBackupService);
   });
 
@@ -46,20 +38,23 @@ describe('Given a service', () => {
 
       await service.run(true, filename);
 
-      expect(scriptLoader.load).toHaveBeenCalledWith(
+      expect(scriptLoaderService.load).toHaveBeenCalledWith(
         'easy-panel',
         'easypanel-backup',
       );
     });
 
     it('Should call execSync with the loaded script and pass the archive path via env', async () => {
+      const LOADED_SCRIPT = `loaded-easypanel-backup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(true, filename);
 
-      expect(execSync).toHaveBeenCalledWith(BACKUP_SCRIPT, {
+      expect(execSync).toHaveBeenCalledWith(LOADED_SCRIPT, {
         env: {
           ...process.env,
           ARCHIVE: filename,
@@ -70,6 +65,9 @@ describe('Given a service', () => {
     });
 
     it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
+      const LOADED_SCRIPT = `loaded-easypanel-backup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const malicious = '$(touch /tmp/pwned).tar.gz';
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -77,7 +75,7 @@ describe('Given a service', () => {
       await service.run(true, malicious);
 
       expect(execSync).toHaveBeenCalledWith(
-        BACKUP_SCRIPT,
+        LOADED_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({ARCHIVE: malicious}),
         }),
@@ -109,12 +107,15 @@ describe('Given a service', () => {
     });
 
     it('Should pass the default filename through env to execSync', async () => {
+      const LOADED_SCRIPT = `loaded-easypanel-backup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(true);
 
       expect(execSync).toHaveBeenCalledWith(
-        BACKUP_SCRIPT,
+        LOADED_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({
             ARCHIVE: expect.stringMatching(

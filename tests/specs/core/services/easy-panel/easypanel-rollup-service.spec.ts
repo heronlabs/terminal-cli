@@ -4,11 +4,11 @@ import {unlinkSync} from 'fs';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {EasypanelRollupService} from '../../../../../src/core/services/easy-panel/easypanel-rollup-service';
-import {ScriptLoaderService} from '../../../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   loggerService,
   s3Service,
+  scriptLoaderService,
 } from '../../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
@@ -18,23 +18,15 @@ vi.mock('fs', () => ({
   unlinkSync: vi.fn(),
 }));
 
-const RESTORE_SCRIPT = `loaded-easypanel-rollup-${faker.string.alphanumeric(8)}.sh`;
-
 describe('Given a service', () => {
   let service: EasypanelRollupService;
-
-  const scriptLoader = {load: vi.fn()};
 
   const originalGetuid = process.getuid;
 
   beforeEach(async () => {
     process.getuid = vi.fn(() => 0);
-    scriptLoader.load.mockReturnValue(RESTORE_SCRIPT);
 
-    const moduleRef = await createTestingModule(cliModule)
-      .overrideProvider(ScriptLoaderService)
-      .useValue(scriptLoader)
-      .compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(EasypanelRollupService);
   });
 
@@ -50,20 +42,23 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(scriptLoader.load).toHaveBeenCalledWith(
+      expect(scriptLoaderService.load).toHaveBeenCalledWith(
         'easy-panel',
         'easypanel-rollup',
       );
     });
 
     it('Should call execSync with the loaded script and pass the archive path via env', async () => {
+      const LOADED_SCRIPT = `loaded-easypanel-rollup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(filename, true);
 
-      expect(execSync).toHaveBeenCalledWith(RESTORE_SCRIPT, {
+      expect(execSync).toHaveBeenCalledWith(LOADED_SCRIPT, {
         env: {
           ...process.env,
           ARCHIVE: filename,
@@ -74,6 +69,9 @@ describe('Given a service', () => {
     });
 
     it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
+      const LOADED_SCRIPT = `loaded-easypanel-rollup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const malicious = '$(touch /tmp/pwned).tar.gz';
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -81,7 +79,7 @@ describe('Given a service', () => {
       await service.run(malicious, true);
 
       expect(execSync).toHaveBeenCalledWith(
-        RESTORE_SCRIPT,
+        LOADED_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({ARCHIVE: malicious}),
         }),

@@ -5,11 +5,11 @@ import {readFileSync} from 'fs';
 import {cliModule} from '../../../src/application/cli/cli-module';
 import {EasypanelBackupCommand} from '../../../src/application/cli/commands/backup/easypanel-backup-command';
 import {BackupOptionsKeys} from '../../../src/application/cli/commands/backup/types/backup-options';
-import {ScriptLoaderService} from '../../../src/core/services/script-loader-service';
 import {
   createTestingModule,
   loggerService,
   s3Service,
+  scriptLoaderService,
 } from '../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
@@ -18,17 +18,12 @@ vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
 describe('Given a CLI command', () => {
   let command: EasypanelBackupCommand;
 
-  const scriptLoader = {load: vi.fn(() => 'loaded-script')};
-
   const originalGetuid = process.getuid;
 
   beforeEach(async () => {
     process.getuid = vi.fn(() => 0);
 
-    const moduleRef = await createTestingModule(cliModule)
-      .overrideProvider(ScriptLoaderService)
-      .useValue(scriptLoader)
-      .compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     command = moduleRef.get(EasypanelBackupCommand);
   });
 
@@ -128,6 +123,8 @@ describe('Given a CLI command', () => {
     });
 
     it('Should use provided filename when --filename flag is passed', async () => {
+      scriptLoaderService.load.mockReturnValue('loaded-script');
+
       const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
