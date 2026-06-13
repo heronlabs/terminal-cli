@@ -1,17 +1,17 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
-import {MysqlBackupService} from '../../../../core/services/mysql/mysql-backup-service';
+import {EasypanelBackupService} from '../../../../core/services/easy-panel/easypanel-backup-service';
 import {BackupOptions, BackupOptionsKeys} from './types/backup-options';
 
 @Command({
-  name: 'mysql-backup',
-  description: 'Backup MySQL database',
+  name: 'easypanel-backup',
+  description: 'Backup EasyPanel host (config + Docker state)',
 })
-export class MysqlBackupCommand extends CommandRunner {
+export class EasypanelBackupCommand extends CommandRunner {
   @Option({
     flags: `-f, --${BackupOptionsKeys.FILENAME} <filename>`,
     description:
-      'Output filename (e.g. seed.sql.gz). Defaults to "<database>-<timestamp>.sql.gz"',
+      'Output filename (e.g. snapshot.tar.gz). Defaults to "easypanel-<timestamp>.tar.gz"',
   })
   parseFilename(val: string): string {
     return val;
@@ -27,13 +27,13 @@ export class MysqlBackupCommand extends CommandRunner {
   }
 
   public async run(_args?: string[], options?: BackupOptions) {
-    await this.mysqlBackupService.run(
+    await this.easypanelBackupService.run(
       options?.[BackupOptionsKeys.LOCAL] ?? false,
       options?.[BackupOptionsKeys.FILENAME],
     );
   }
 
-  constructor(private readonly mysqlBackupService: MysqlBackupService) {
+  constructor(private readonly easypanelBackupService: EasypanelBackupService) {
     super();
   }
 }

@@ -1,6 +1,6 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
-import {MysqlRollupService} from '../../../../core/services/mysql-rollup-service';
+import {MysqlRollupService} from '../../../../core/services/mysql/mysql-rollup-service';
 import {RollupOptions, RollupOptionsKeys} from './types/rollup-options';
 
 @Command({

@@ -1,0 +1,3 @@
+# Scripts under src/core/services/*/ are loaded by ScriptLoaderService and fed
+# to a shell by the CLI — they are never executed directly, so no shebang.
+disable=SC2148

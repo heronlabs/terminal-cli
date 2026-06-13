@@ -2,14 +2,16 @@ import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
 import {unlinkSync} from 'fs';
 
-import {cliModule} from '../../../../src/application/cli/cli-module';
-import {PsqlRollupService} from '../../../../src/core/services/psql-rollup-service';
+import {cliModule} from '../../../../../src/application/cli/cli-module';
+import {PsqlRollupService} from '../../../../../src/core/services/psql/psql-rollup-service';
 import {
   createTestingModule,
   databaseConnection,
   loggerService,
   s3Service,
-} from '../../../__mocks__/create-testing-module';
+  scriptLoaderService,
+  ssmConfigService,
+} from '../../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
@@ -17,6 +19,7 @@ vi.mock('fs', () => ({
   readFileSync: vi.fn(),
   unlinkSync: vi.fn(),
 }));
+
 describe('Given a service', () => {
   let service: PsqlRollupService;
 
@@ -26,32 +29,48 @@ describe('Given a service', () => {
   });
 
   describe('Given psql rollup', () => {
-    it('Should call execSync with a constant gunzip|psql command and pass all dynamic values via env', async () => {
+    it('Should load the psql-rollup script from the psql dir', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(filename, true);
 
-      expect(execSync).toHaveBeenCalledWith(
-        'set -o pipefail; gunzip -c "$BACKUP_FILE" | psql',
-        {
-          env: {
-            ...process.env,
-            PGHOST: databaseConnection.host,
-            PGPORT: databaseConnection.port,
-            PGDATABASE: databaseConnection.name,
-            PGUSER: databaseConnection.user,
-            PGPASSWORD: databaseConnection.password,
-            BACKUP_FILE: filename,
-          },
-          stdio: ['inherit', 'pipe', 'inherit'],
-          shell: '/bin/bash',
-        },
+      expect(scriptLoaderService.load).toHaveBeenCalledWith(
+        'psql',
+        'psql-rollup',
       );
     });
 
+    it('Should call execSync with the loaded script and pass all dynamic values via env', async () => {
+      const LOADED_SCRIPT = `loaded-psql-rollup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(filename, true);
+
+      expect(execSync).toHaveBeenCalledWith(LOADED_SCRIPT, {
+        env: {
+          ...process.env,
+          PGHOST: databaseConnection.host,
+          PGPORT: databaseConnection.port,
+          PGDATABASE: databaseConnection.name,
+          PGUSER: databaseConnection.user,
+          PGPASSWORD: databaseConnection.password,
+          BACKUP_FILE: filename,
+        },
+        stdio: ['inherit', 'pipe', 'inherit'],
+        shell: '/bin/bash',
+      });
+    });
+
     it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
+      const LOADED_SCRIPT = `loaded-psql-rollup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const malicious = '$(touch /tmp/pwned).sql.gz';
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -59,7 +78,7 @@ describe('Given a service', () => {
       await service.run(malicious, true);
 
       expect(execSync).toHaveBeenCalledWith(
-        'set -o pipefail; gunzip -c "$BACKUP_FILE" | psql',
+        LOADED_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({BACKUP_FILE: malicious}),
         }),
@@ -127,6 +146,29 @@ describe('Given a service', () => {
       await service.run(filename, true);
 
       expect(unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it('Should not invoke execSync when database resolution fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(
+        new Error(faker.lorem.word()),
+      );
+
+      await service.run(filename, true);
+
+      expect(execSync).not.toHaveBeenCalled();
+    });
+
+    it('Should log the database resolution error message exactly', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+      const message = faker.lorem.sentence();
+
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(new Error(message));
+
+      await service.run(filename, true);
+
+      expect(loggerService.error).toHaveBeenCalledWith(message);
     });
 
     it('Should log the restore error message exactly when execSync fails', async () => {

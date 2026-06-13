@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",
-    "@heronlabs/env-ssm": "^2.0.1",
+    "@heronlabs/env-ssm": "^3.0.1",
     "@nestjs/common": "^11.1.18",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.18",
@@ -40,6 +40,7 @@
     "jiti": "^2.7.0",
     "moq.ts": "^10.0.8",
     "nest-commander-testing": "^3.5.1",
+    "shellcheck": "^4.1.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.60.0",
     "vitest": "^4.1.6"
@@ -47,7 +48,7 @@
   "engineStrict": true,
   "engines": {
     "node": ">=22",
-    "pnpm": ">=10.29.3"
+    "pnpm": ">=10.33.2"
   },
   "files": [
     "bin"
@@ -87,8 +88,9 @@
   "scripts": {
     "build": "nest build --path tsconfig.bin.json",
     "dep:cruise": "depcruise src --config .dependency-cruiser.json",
-    "lint:check": "gts lint && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --no-error-on-unmatched-pattern",
-    "lint:fix": "gts fix && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --fix --no-error-on-unmatched-pattern",
+    "lint:check": "gts lint && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --no-error-on-unmatched-pattern && pnpm lint:shell",
+    "lint:fix": "gts fix && eslint \"**/*.json\" \"**/*.yml\" \"**/*.yaml\" --fix --no-error-on-unmatched-pattern && pnpm lint:shell",
+    "lint:shell": "find src -name '*.sh' -exec shellcheck {} +",
     "prepublishOnly": "pnpm build",
     "start": "dotenv -- node bin/src/main.js",
     "test:mutation": "stryker run stryker.conf.json",

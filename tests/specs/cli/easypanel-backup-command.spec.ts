@@ -3,7 +3,7 @@ import {execSync} from 'child_process';
 import {readFileSync} from 'fs';
 
 import {cliModule} from '../../../src/application/cli/cli-module';
-import {MysqlBackupCommand} from '../../../src/application/cli/commands/backup/mysql-backup-command';
+import {EasypanelBackupCommand} from '../../../src/application/cli/commands/backup/easypanel-backup-command';
 import {BackupOptionsKeys} from '../../../src/application/cli/commands/backup/types/backup-options';
 import {
   createTestingModule,
@@ -14,16 +14,25 @@ import {
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
+
 describe('Given a CLI command', () => {
-  let command: MysqlBackupCommand;
+  let command: EasypanelBackupCommand;
+
+  const originalGetuid = process.getuid;
 
   beforeEach(async () => {
+    process.getuid = vi.fn(() => 0);
+
     const moduleRef = await createTestingModule(cliModule).compile();
-    command = moduleRef.get(MysqlBackupCommand);
+    command = moduleRef.get(EasypanelBackupCommand);
   });
 
-  describe('Given command mysql-backup', () => {
-    it('Should run the mysql backup command without logging an error', async () => {
+  afterEach(() => {
+    process.getuid = originalGetuid;
+  });
+
+  describe('Given command easypanel-backup', () => {
+    it('Should run the easypanel backup command without logging an error', async () => {
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       vi.mocked(readFileSync).mockReturnValueOnce(
@@ -39,26 +48,26 @@ describe('Given a CLI command', () => {
 
     it('Should log error when execSync throws', async () => {
       vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error('mariadb-dump failed');
+        throw new Error('easypanel backup failed');
       });
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith('mariadb-dump failed');
+      expect(loggerService.error).toHaveBeenCalledWith(
+        'easypanel backup failed',
+      );
     });
 
     it('Should log error when readFileSync throws', async () => {
-      const message = faker.lorem.words();
-
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       vi.mocked(readFileSync).mockImplementationOnce(() => {
-        throw new Error(message);
+        throw new Error('read failed');
       });
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith('read failed');
     });
 
     it('Should log error when s3Service throws', async () => {
@@ -68,13 +77,11 @@ describe('Given a CLI command', () => {
         Buffer.from(faker.string.alphanumeric(10)),
       );
 
-      const message = faker.lorem.words();
-
-      s3Service.send.mockRejectedValueOnce(new Error(message));
+      s3Service.send.mockRejectedValueOnce(new Error('s3 error'));
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith('s3 error');
     });
 
     it('Should log generic error when s3Service throws a non-Error', async () => {
@@ -85,7 +92,7 @@ describe('Given a CLI command', () => {
       );
 
       s3Service.send.mockImplementationOnce(() => {
-        throw faker.lorem.word();
+        throw 'upload error';
       });
 
       await command.run();
@@ -110,7 +117,7 @@ describe('Given a CLI command', () => {
 
       expect(loggerService.log).toHaveBeenCalledWith(
         expect.stringMatching(
-          /^Backup MySQL database successfully! Filename: /,
+          /^Backup EasyPanel host successfully! Filename: /,
         ),
       );
     });
@@ -118,7 +125,7 @@ describe('Given a CLI command', () => {
     it('Should use provided filename when --filename flag is passed', async () => {
       scriptLoaderService.load.mockReturnValue('loaded-script');
 
-      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+      const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
@@ -130,13 +137,13 @@ describe('Given a CLI command', () => {
       expect(execSync).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          env: expect.objectContaining({BACKUP_FILE: filename}),
+          env: expect.objectContaining({ARCHIVE: filename}),
         }),
       );
     });
 
     it('Should return the value passed when parsing filename option', () => {
-      const value = `${faker.string.alphanumeric(10)}.sql.gz`;
+      const value = `${faker.string.alphanumeric(10)}.tar.gz`;
 
       expect(command.parseFilename(value)).toBe(value);
     });

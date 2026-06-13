@@ -1,4 +1,5 @@
-FROM node:22.20.0-alpine AS builder
+# node:22.22.3-alpine3.24 — pinned by digest for reproducible builds + stable CVE scan
+FROM node:22.22.3-alpine3.24@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4 AS builder
 
 ENV CI=true
 WORKDIR /app
@@ -12,12 +13,15 @@ RUN pnpm install --frozen-lockfile \
   && pnpm build \
   && pnpm prune --prod
 
-FROM node:22.20.0-alpine AS runtime
+# node:22.22.3-alpine3.24 — pinned by digest for reproducible builds + stable CVE scan
+FROM node:22.22.3-alpine3.24@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4 AS runtime
 
 ENV NODE_ENV=production
 WORKDIR /app
 
-RUN apk add --no-cache \
+# hadolint ignore=DL3018
+RUN apk upgrade --no-cache \
+  && apk add --no-cache \
   postgresql-client \
   mysql-client \
   mariadb-client \

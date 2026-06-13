@@ -95,13 +95,15 @@ pnpm dep:cruise    # architecture check
 | `hcli psql-rollup --filename <file>` | Restore a PostgreSQL database from a backup |
 | `hcli mysql-backup` | Back up a MySQL database (S3 by default) |
 | `hcli mysql-rollup --filename <file>` | Restore a MySQL database from a backup |
+| `hcli easypanel-backup` | Snapshot an EasyPanel host — config + Docker state — to a `.tar.gz` (S3 by default). Run as root on the host. |
+| `hcli easypanel-rollup --filename <file>` | Restore an EasyPanel host from a snapshot. Run as root on the host. **Overwrites host files.** |
 | `hcli version` | Print the current version |
 
 ### Flags
 
 | Flag | Applies to | Meaning |
 |---|---|---|
-| `-f, --filename <name>` | all | Backup filename. Backup defaults to `<database>-<timestamp>.sql.gz`; rollup requires it. |
+| `-f, --filename <name>` | all | Backup filename. DB backups default to `<database>-<timestamp>.sql.gz` and `easypanel-backup` to `easypanel-<timestamp>.tar.gz`; rollup requires it. |
 | `--local` | all | Read/write the backup on the local filesystem instead of S3. |
 
 Examples:
@@ -118,6 +120,15 @@ hcli psql-rollup --local --filename seed.sql.gz
 
 # Restore from S3
 hcli mysql-rollup --filename mydb-2026-03-05T12-00-00Z.sql.gz
+
+# Snapshot an EasyPanel host to S3 (run as root on the host)
+sudo hcli easypanel-backup
+
+# Snapshot to a local file with a custom name
+sudo hcli easypanel-backup --local --filename easypanel-snapshot.tar.gz
+
+# Restore an EasyPanel host from S3 (OVERWRITES host files)
+sudo hcli easypanel-rollup --filename easypanel-2026-03-05T12-00-00Z.tar.gz
 ```
 
 ## Configuration
@@ -178,6 +189,40 @@ Local stack for manual testing:
 ```bash
 docker compose up        # spins up psql + mysql DBs and CLI containers
 ```
+
+## EasyPanel host backup
+
+`easypanel-backup` / `easypanel-rollup` snapshot a whole [EasyPanel](https://easypanel.io/)
+host — `/etc/easypanel`, `/var/lib/docker/volumes`, and `/var/lib/docker/buildkit` —
+into a single `.tar.gz`. To keep the snapshot consistent the command stops the
+Docker daemon while the archive is taken and restarts it afterwards (even if the
+backup fails).
+
+Because it runs `systemctl stop docker` and reads `/var/lib/docker`, it must run
+**natively on the host as root**, not inside a container managed by that daemon.
+If not run as root the command refuses to start (it will not stop Docker and
+then fail), so schedule it as root.
+
+> ⚠️ **`easypanel-rollup` extracts the archive to `/` and overwrites host files**
+> (`/etc/easypanel` and `/var/lib/docker`). It does not prompt — run it
+> deliberately, against a host you intend to roll back.
+
+### Scheduling (every 12h)
+
+Install the CLI on the host (Ubuntu 22.04) and match the DB cron containers'
+cadence with a host crontab line:
+
+```bash
+npm i -g @heronlabs/terminal-cli
+```
+
+```cron
+# /etc/crontab — run as root, source the env first
+0 */12 * * * root . /etc/easypanel-backup.env; hcli easypanel-backup
+```
+
+Put the `AWS_*` variables (the `easypanel-*` commands need only `AWS_*`, no DB
+vars) in `/etc/easypanel-backup.env`.
 
 ## Testing
 

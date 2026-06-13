@@ -39,11 +39,8 @@ describe('Given a service', () => {
       );
 
       expect(await service.database()).toEqual({
-        host,
-        port,
-        name,
-        user,
-        password,
+        ok: true,
+        connection: {host, port, name, user, password},
       });
     });
 
@@ -59,11 +56,8 @@ describe('Given a service', () => {
       );
 
       expect(await service.database()).toEqual({
-        host,
-        port,
-        name,
-        user,
-        password,
+        ok: true,
+        connection: {host, port, name, user, password},
       });
     });
 
@@ -81,31 +75,44 @@ describe('Given a service', () => {
       );
 
       expect(await service.database()).toEqual({
-        host,
-        port,
-        name,
-        user,
-        password,
+        ok: true,
+        connection: {host, port, name, user, password},
       });
     });
 
-    it('Should throw when the resolved DB_URL is not a valid connection URL', async () => {
-      ssmConfigService.getOrThrow.mockResolvedValueOnce(faker.string.alpha(12));
+    it('Should return the original error when DB_URL cannot be resolved', async () => {
+      const error = new Error(faker.lorem.sentence());
 
-      await expect(service.database()).rejects.toThrow('Invalid DB_URL');
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(error);
+
+      expect(await service.database()).toEqual({ok: false, error});
     });
 
-    it('Should throw when the connection URL is missing the host', async () => {
+    it('Should fail when the resolved DB_URL is not a valid connection URL', async () => {
+      ssmConfigService.getOrThrow.mockResolvedValueOnce(faker.string.alpha(12));
+
+      const result = await service.database();
+
+      expect(result).toEqual({
+        ok: false,
+        error: new Error('Invalid DB_URL'),
+      });
+    });
+
+    it('Should fail when the connection URL is missing the host', async () => {
       const name = faker.string.alphanumeric(10);
 
       ssmConfigService.getOrThrow.mockResolvedValueOnce(`postgres:///${name}`);
 
-      await expect(service.database()).rejects.toThrow(
-        'Invalid DB_URL: missing host',
-      );
+      const result = await service.database();
+
+      expect(result).toEqual({
+        ok: false,
+        error: new Error('Invalid DB_URL: missing host, user'),
+      });
     });
 
-    it('Should throw when the connection URL is missing the name', async () => {
+    it('Should fail when the connection URL is missing the name', async () => {
       const host = faker.internet.domainName();
       const port = faker.number.int({min: 1024, max: 65535}).toString();
       const user = faker.string.alphanumeric(10);
@@ -115,12 +122,15 @@ describe('Given a service', () => {
         `postgres://${user}:${password}@${host}:${port}/`,
       );
 
-      await expect(service.database()).rejects.toThrow(
-        'Invalid DB_URL: missing name',
-      );
+      const result = await service.database();
+
+      expect(result).toEqual({
+        ok: false,
+        error: new Error('Invalid DB_URL: missing name'),
+      });
     });
 
-    it('Should throw when the connection URL is missing the user', async () => {
+    it('Should fail when the connection URL is missing the user', async () => {
       const host = faker.internet.domainName();
       const port = faker.number.int({min: 1024, max: 65535}).toString();
       const name = faker.string.alphanumeric(10);
@@ -129,17 +139,23 @@ describe('Given a service', () => {
         `postgres://${host}:${port}/${name}`,
       );
 
-      await expect(service.database()).rejects.toThrow(
-        'Invalid DB_URL: missing user',
-      );
+      const result = await service.database();
+
+      expect(result).toEqual({
+        ok: false,
+        error: new Error('Invalid DB_URL: missing user'),
+      });
     });
 
     it('Should list every missing field in host, name, user order', async () => {
       ssmConfigService.getOrThrow.mockResolvedValueOnce('postgres:///');
 
-      await expect(service.database()).rejects.toThrow(
-        'Invalid DB_URL: missing host, name',
-      );
+      const result = await service.database();
+
+      expect(result).toEqual({
+        ok: false,
+        error: new Error('Invalid DB_URL: missing host, name, user'),
+      });
     });
   });
 

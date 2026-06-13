@@ -11,8 +11,9 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 | Command | What it does |
 |---|---|
 | `pnpm build` | `nest build --path tsconfig.bin.json` → `bin/` |
-| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML |
-| `pnpm lint:fix` | `gts fix` + eslint `--fix` on JSON/YAML |
+| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML + shellcheck on `src/**/*.sh` |
+| `pnpm lint:fix` | `gts fix` + eslint `--fix` on JSON/YAML + shellcheck (check-only) |
+| `pnpm lint:shell` | shellcheck on `src/**/*.sh` (config: `.shellcheckrc`; scripts are shebang-less by design) |
 | `pnpm test:unit` | `VITE_CJS_IGNORE_WARNING=true vitest run` |
 | `pnpm test:mutation` | `stryker run stryker.conf.json` |
 | `pnpm dep:cruise` | dependency-cruiser architecture check |
@@ -20,8 +21,13 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 
 ## CLI Commands (`hcli`)
 
-`psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`, `version`.
+`psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`,
+`easypanel-backup`, `easypanel-rollup`, `version`.
 Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3).
+
+The `easypanel-*` commands snapshot an EasyPanel host (config + Docker state) to
+a `.tar.gz` rather than a database; they run natively on the host **as root**
+(stop Docker → tar → restart) and use only the `AWS_*` env vars.
 
 ## Source Layout
 
@@ -30,7 +36,7 @@ Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3).
 | `src/main.ts` | Bootstrap — `CommandFactory.runApplication(CliModule)` |
 | `src/application/cli/` | `cli-module.ts` + `commands/{backup,rollup,version}/` (nest-commander commands + option types) |
 | `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration) |
-| `src/core/services/` | `{mysql,psql}-{backup,rollup}-service` — engine-specific `dump`/`restore` |
+| `src/core/services/` | One folder per engine — `{easy-panel,mysql,psql}/` with its backup + rollup services (`easy-panel/` also holds its `.sh` scripts); shared `script-loader-service.ts` at the root |
 | `src/infrastructure/environment/` | `EnvironmentService` — typed wrapper over `@nestjs/config` |
 | `src/infrastructure/log/` | `LogModule` — nestjs-pino global logger |
 | `src/infrastructure/storage/` | `S3StorageService` — AWS SDK v3 upload/download |

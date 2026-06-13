@@ -2,7 +2,11 @@
   "$schema": "https://json.schemastore.org/nest-cli",
   "collection": "@nestjs/schematics",
   "compilerOptions": {
-    "deleteOutDir": true
+    "assets": [
+      {"include": "**/*.sh", "outDir": "bin/src", "watchAssets": true}
+    ],
+    "deleteOutDir": true,
+    "watchAssets": true
   },
   "entryFile": "main",
   "sourceRoot": "src"

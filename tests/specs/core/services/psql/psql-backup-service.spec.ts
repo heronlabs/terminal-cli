@@ -2,52 +2,71 @@ import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
 import {readFileSync, unlinkSync} from 'fs';
 
-import {cliModule} from '../../../../src/application/cli/cli-module';
-import {MysqlBackupService} from '../../../../src/core/services/mysql-backup-service';
+import {cliModule} from '../../../../../src/application/cli/cli-module';
+import {PsqlBackupService} from '../../../../../src/core/services/psql/psql-backup-service';
 import {
   createTestingModule,
   databaseConnection,
   loggerService,
   s3Service,
-} from '../../../__mocks__/create-testing-module';
+  scriptLoaderService,
+  ssmConfigService,
+} from '../../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
+
 describe('Given a service', () => {
-  let service: MysqlBackupService;
+  let service: PsqlBackupService;
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
-    service = moduleRef.get(MysqlBackupService);
+    service = moduleRef.get(PsqlBackupService);
   });
 
-  describe('Given mysql backup', () => {
-    it('Should call execSync with a constant mariadb-dump command and pass all dynamic values via env', async () => {
+  describe('Given psql backup', () => {
+    it('Should load the psql-backup script from the psql dir', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(true, filename);
 
-      expect(execSync).toHaveBeenCalledWith(
-        'set -o pipefail; mariadb-dump -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" | gzip > "$BACKUP_FILE"',
-        {
-          env: {
-            ...process.env,
-            DB_USER: databaseConnection.user,
-            DB_HOST: databaseConnection.host,
-            DB_PORT: databaseConnection.port,
-            DB_NAME: databaseConnection.name,
-            MYSQL_PWD: databaseConnection.password,
-            BACKUP_FILE: filename,
-          },
-          stdio: ['inherit', 'pipe', 'inherit'],
-          shell: '/bin/bash',
-        },
+      expect(scriptLoaderService.load).toHaveBeenCalledWith(
+        'psql',
+        'psql-backup',
       );
     });
 
+    it('Should call execSync with the loaded script and pass all dynamic values via env', async () => {
+      const LOADED_SCRIPT = `loaded-psql-backup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true, filename);
+
+      expect(execSync).toHaveBeenCalledWith(LOADED_SCRIPT, {
+        env: {
+          ...process.env,
+          PGHOST: databaseConnection.host,
+          PGPORT: databaseConnection.port,
+          PGDATABASE: databaseConnection.name,
+          PGUSER: databaseConnection.user,
+          PGPASSWORD: databaseConnection.password,
+          BACKUP_FILE: filename,
+        },
+        stdio: ['inherit', 'pipe', 'inherit'],
+        shell: '/bin/bash',
+      });
+    });
+
     it('Should pass a malicious filename through env, never into the command (injection safe)', async () => {
+      const LOADED_SCRIPT = `loaded-psql-backup-${faker.string.alphanumeric(8)}`;
+      scriptLoaderService.load.mockReturnValue(LOADED_SCRIPT);
+
       const malicious = '$(touch /tmp/pwned).sql.gz';
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -55,7 +74,7 @@ describe('Given a service', () => {
       await service.run(true, malicious);
 
       expect(execSync).toHaveBeenCalledWith(
-        'set -o pipefail; mariadb-dump -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" | gzip > "$BACKUP_FILE"',
+        LOADED_SCRIPT,
         expect.objectContaining({
           env: expect.objectContaining({BACKUP_FILE: malicious}),
         }),
@@ -70,7 +89,7 @@ describe('Given a service', () => {
       await service.run(true, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        `Backup MySQL database successfully! Filename: ${filename}`,
+        `Backup PostgreSQL database successfully! Filename: ${filename}`,
       );
     });
 
@@ -82,7 +101,7 @@ describe('Given a service', () => {
       expect(loggerService.log).toHaveBeenCalledWith(
         expect.stringMatching(
           new RegExp(
-            `^Backup MySQL database successfully! Filename: ${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
+            `^Backup PostgreSQL database successfully! Filename: ${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
           ),
         ),
       );
@@ -167,6 +186,26 @@ describe('Given a service', () => {
       expect(s3Service.send).not.toHaveBeenCalled();
     });
 
+    it('Should not invoke execSync when database resolution fails', async () => {
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(
+        new Error(faker.lorem.word()),
+      );
+
+      await service.run(true);
+
+      expect(execSync).not.toHaveBeenCalled();
+    });
+
+    it('Should log the database resolution error message exactly', async () => {
+      const message = faker.lorem.sentence();
+
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(new Error(message));
+
+      await service.run(true);
+
+      expect(loggerService.error).toHaveBeenCalledWith(message);
+    });
+
     it('Should return undefined when dump fails', async () => {
       vi.mocked(execSync).mockImplementationOnce(() => {
         throw new Error(faker.lorem.word());
@@ -184,7 +223,7 @@ describe('Given a service', () => {
 
       await service.run(true);
 
-      expect(loggerService.error).toHaveBeenCalledWith('mariadb-dump failed');
+      expect(loggerService.error).toHaveBeenCalledWith('pg_dump failed');
     });
   });
 });

@@ -2,22 +2,28 @@ import {Injectable, Logger} from '@nestjs/common';
 import {execSync} from 'child_process';
 import {DateTime} from 'luxon';
 
-import {EnvironmentService} from '../../infrastructure/environment/services/environment-service';
-import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
-import {BackupService} from '../interfaces/backup-service';
+import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
+import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
+import {BackupService} from '../../interfaces/backup-service';
+import {ScriptLoaderService} from '../script-loader-service';
 
 @Injectable()
 export class PsqlBackupService extends BackupService {
   protected async dump(filename?: string) {
-    const {host, port, name, user, password} =
-      await this.environmentService.database();
+    const db = await this.environmentService.database();
+
+    if (!db.ok) {
+      return {ok: false as const, error: db.error};
+    }
+
+    const {host, port, name, user, password} = db.connection;
 
     const timestamp = DateTime.utc().toFormat("yyyy-MM-dd'T'HH-mm-ss'Z'");
 
     const backupFileName = filename ?? `${name}-${timestamp}.sql.gz`;
 
     try {
-      execSync('set -o pipefail; pg_dump | gzip > "$BACKUP_FILE"', {
+      execSync(this.scriptLoader.load('psql', 'psql-backup'), {
         env: {
           ...process.env,
           PGHOST: host,
@@ -45,6 +51,7 @@ export class PsqlBackupService extends BackupService {
     protected readonly logger: Logger,
     private readonly environmentService: EnvironmentService,
     protected readonly s3StorageService: S3StorageService,
+    private readonly scriptLoader: ScriptLoaderService,
   ) {
     super(logger, s3StorageService);
   }

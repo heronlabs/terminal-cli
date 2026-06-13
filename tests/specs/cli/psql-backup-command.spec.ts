@@ -9,6 +9,7 @@ import {
   createTestingModule,
   loggerService,
   s3Service,
+  scriptLoaderService,
 } from '../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
@@ -115,6 +116,8 @@ describe('Given a CLI command', () => {
     });
 
     it('Should use provided filename when --filename flag is passed', async () => {
+      scriptLoaderService.load.mockReturnValue('loaded-script');
+
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
