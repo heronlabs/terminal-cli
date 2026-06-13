@@ -134,6 +134,20 @@ describe('Given a service', () => {
       await service.run(filename, false);
 
       expect(unlinkSync).toHaveBeenCalledWith(filename);
+    });
+
+    it('Should log the downloaded file deletion after successful remote restore', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
+
+      s3Service.send.mockResolvedValueOnce({
+        Body: {
+          transformToByteArray: vi.fn().mockResolvedValueOnce(new Uint8Array()),
+        },
+      });
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(filename, false);
+
       expect(loggerService.log).toHaveBeenCalledWith(
         'Deleted downloaded backup file',
       );
@@ -195,6 +209,15 @@ describe('Given a service', () => {
       expect(loggerService.error).toHaveBeenCalledWith(
         'easypanel-rollup must run as root (needs systemctl + /var/lib/docker access)',
       );
+    });
+
+    it('Should not invoke execSync when getuid is unavailable', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.tar.gz`;
+
+      process.getuid = undefined;
+
+      await service.run(filename, true);
+
       expect(execSync).not.toHaveBeenCalled();
     });
   });
