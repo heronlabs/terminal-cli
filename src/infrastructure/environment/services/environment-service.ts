@@ -1,4 +1,4 @@
-import {SsmConfigService} from '@heronlabs/env-ssm';
+import {ConfigService as SsmConfigService} from '@heronlabs/env-ssm';
 import {Injectable} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 

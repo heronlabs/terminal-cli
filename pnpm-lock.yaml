@@ -5,8 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  tmp@<0.2.6: '>=0.2.6'
   qs@<6.15.2: '>=6.15.2'
+  tmp@<0.2.6: '>=0.2.6'
 
 importers:
 
@@ -16,8 +16,8 @@ importers:
         specifier: ^3.1045.0
         version: 3.1056.0
       '@heronlabs/env-ssm':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^3.0.1
+        version: 3.0.1
       '@nestjs/common':
         specifier: ^11.1.18
         version: 11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -509,9 +509,10 @@ packages:
       '@nestjs/common': ^11.0.20
       '@nestjs/core': ^11.0.20
 
-  '@heronlabs/env-ssm@2.0.1':
-    resolution: {integrity: sha512-m5vhegs1/wT3ZlAIOHHwG24DWYMrI0ObSUf8+X18apbizzrp6W7PWiA7V7lJdJk2H6o6tgN9AjdvoHPtbMC70Q==}
+  '@heronlabs/env-ssm@3.0.1':
+    resolution: {integrity: sha512-Yyo2PMDJbj4wyPDyN+aa5BRTn1Hcxm+9X7e+7eV/yxQTxZjq4vB4Tv2naHZJUD9u52Sg/66YJcb0+PTdyd95kA==}
     engines: {node: '>=22', pnpm: '>=10.29.3'}
+    hasBin: true
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -4430,7 +4431,7 @@ snapshots:
       '@nestjs/core': 11.1.24(@nestjs/common@11.1.24(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       lodash: 4.18.1
 
-  '@heronlabs/env-ssm@2.0.1':
+  '@heronlabs/env-ssm@3.0.1':
     dependencies:
       '@aws-sdk/client-ssm': 3.1057.0
 

@@ -1,6 +1,6 @@
 import {S3Client} from '@aws-sdk/client-s3';
 import {faker} from '@faker-js/faker';
-import {SsmConfigService} from '@heronlabs/env-ssm';
+import {ConfigService as SsmConfigService} from '@heronlabs/env-ssm';
 import {Logger, ModuleMetadata} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 import {Test, TestingModuleBuilder} from '@nestjs/testing';
