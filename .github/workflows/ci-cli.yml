@@ -119,3 +119,89 @@ jobs:
           path: reports/mutation/
           retention-days: 14
           if-no-files-found: warn
+
+  integration-test:
+    needs: setup
+    name: 'Integration Test'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:12-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mydb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mydb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: mydb
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -u root -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: bin
+          key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'src/**/*.ts', 'tsconfig*.json', 'nest-cli.json') }}
+
+      # The bin cache from `setup` shares this key, so it is normally a hit; build
+      # only on the rare miss (e.g. an evicted cache on a workflow_dispatch rerun).
+      - if: hashFiles('bin/src/main.js') == ''
+        run: pnpm build
+
+      # The runner doesn't ship matching psql/pg_dump or MariaDB clients; the CLI
+      # shells out to them, so install them explicitly.
+      - name: Install database clients
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client mariadb-client
+
+      # MySQL 8 defaults the app user to caching_sha2_password, which the Ubuntu
+      # MariaDB client may reject. Pin it to mysql_native_password so the CLI's
+      # mariadb/mariadb-dump path authenticates deterministically.
+      - name: Provision mysql_native_password user
+        run: |
+          mariadb -h 127.0.0.1 -P 3306 -u root -proot -e "
+            CREATE USER IF NOT EXISTS 'mysql'@'%' IDENTIFIED WITH mysql_native_password BY 'mysql';
+            ALTER USER 'mysql'@'%' IDENTIFIED WITH mysql_native_password BY 'mysql';
+            GRANT ALL PRIVILEGES ON *.* TO 'mysql'@'%' WITH GRANT OPTION;
+            FLUSH PRIVILEGES;"
+
+      - name: PostgreSQL backup/rollup round-trip
+        env:
+          DB_URL: postgres://postgres:postgres@localhost:5432/mydb
+          AWS_REGION: us-east-1
+          AWS_S3_BUCKET_NAME: dummy-bucket
+        run: bash tests/integration/psql-roundtrip.sh
+
+      - name: MySQL backup/rollup round-trip
+        env:
+          DB_URL: mysql://mysql:mysql@localhost:3306/mydb
+          AWS_REGION: us-east-1
+          AWS_S3_BUCKET_NAME: dummy-bucket
+        run: bash tests/integration/mysql-roundtrip.sh
