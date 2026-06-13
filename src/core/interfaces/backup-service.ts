@@ -1,5 +1,6 @@
 import {Logger} from '@nestjs/common';
 import {unlinkSync} from 'fs';
+import {DateTime} from 'luxon';
 
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
@@ -9,6 +10,16 @@ export abstract class BackupService {
   ): Promise<
     {ok: true; data: {backupFileName: string}} | {ok: false; error: Error}
   >;
+
+  protected resolveBackupFileName(
+    filename: string | undefined,
+    defaultBaseName: string,
+    extension: string,
+  ): string {
+    const timestamp = DateTime.utc().toFormat("yyyy-MM-dd'T'HH-mm-ss'Z'");
+
+    return filename ?? `${defaultBaseName}-${timestamp}.${extension}`;
+  }
 
   public async run(local: boolean, filename?: string) {
     const result = await this.dump(filename);

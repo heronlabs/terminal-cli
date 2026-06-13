@@ -1,6 +1,5 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {execSync} from 'child_process';
-import {DateTime} from 'luxon';
 
 import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
 import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
@@ -18,9 +17,7 @@ export class MysqlBackupService extends BackupService {
 
     const {host, port, name, user, password} = db.connection;
 
-    const timestamp = DateTime.utc().toFormat("yyyy-MM-dd'T'HH-mm-ss'Z'");
-
-    const backupFileName = filename ?? `${name}-${timestamp}.sql.gz`;
+    const backupFileName = this.resolveBackupFileName(filename, name, 'sql.gz');
 
     try {
       execSync(this.scriptLoader.load('mysql', 'mysql-backup'), {
