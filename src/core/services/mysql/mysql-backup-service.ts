@@ -10,8 +10,13 @@ import {ScriptLoaderService} from '../script-loader-service';
 @Injectable()
 export class MysqlBackupService extends BackupService {
   protected async dump(filename?: string) {
-    const {host, port, name, user, password} =
-      await this.environmentService.database();
+    const db = await this.environmentService.database();
+
+    if (!db.ok) {
+      return {ok: false as const, error: db.error};
+    }
+
+    const {host, port, name, user, password} = db.connection;
 
     const timestamp = DateTime.utc().toFormat("yyyy-MM-dd'T'HH-mm-ss'Z'");
 

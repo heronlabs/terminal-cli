@@ -9,8 +9,13 @@ import {ScriptLoaderService} from '../script-loader-service';
 @Injectable()
 export class MysqlRollupService extends RollupService {
   protected async restore(backupFileName: string) {
-    const {host, port, name, user, password} =
-      await this.environmentService.database();
+    const db = await this.environmentService.database();
+
+    if (!db.ok) {
+      return {ok: false as const, error: db.error};
+    }
+
+    const {host, port, name, user, password} = db.connection;
 
     try {
       execSync(this.scriptLoader.load('mysql', 'mysql-rollup'), {

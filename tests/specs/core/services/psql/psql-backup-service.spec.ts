@@ -10,6 +10,7 @@ import {
   loggerService,
   s3Service,
   scriptLoaderService,
+  ssmConfigService,
 } from '../../../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
@@ -183,6 +184,26 @@ describe('Given a service', () => {
       await service.run(true, filename);
 
       expect(s3Service.send).not.toHaveBeenCalled();
+    });
+
+    it('Should not invoke execSync when database resolution fails', async () => {
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(
+        new Error(faker.lorem.word()),
+      );
+
+      await service.run(true);
+
+      expect(execSync).not.toHaveBeenCalled();
+    });
+
+    it('Should log the database resolution error message exactly', async () => {
+      const message = faker.lorem.sentence();
+
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(new Error(message));
+
+      await service.run(true);
+
+      expect(loggerService.error).toHaveBeenCalledWith(message);
     });
 
     it('Should return undefined when dump fails', async () => {
