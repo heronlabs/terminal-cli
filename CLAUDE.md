@@ -101,6 +101,11 @@ is public, since npm only signs sigstore provenance for public source repos.
 (EasyPanel cron containers: backup on start + every 12h). `docker-compose.yml`
 spins up local psql/mysql DBs + CLI containers.
 
+`easypanel/` holds paste-able EasyPanel "Create from Schema" templates
+(`psql-backup.json`, `mysql-backup.json` + README) that run the generic published
+image with the backup cron defined **in the template** (file mount at
+`/etc/crontabs/root`) instead of a baked-in cron-tab image.
+
 ## TypeScript
 
 - Target ES2022, module CommonJS, strict, decorators on, `noUncheckedIndexedAccess`.
