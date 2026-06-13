@@ -1,31 +1,33 @@
 # EasyPanel templates
 
-Paste-able [EasyPanel](https://easypanel.io/) templates that run scheduled
-PostgreSQL / MySQL backups with `hcli` — **without** building a custom image.
-They deploy the published, generic [`heronlabs/terminal-cli`](https://hub.docker.com/r/heronlabs/terminal-cli)
-image and define the backup cron **in the template itself**, so EasyPanel users
-no longer need the baked-in `cron-tab-*.dockerfile` images.
+Paste-able [EasyPanel](https://easypanel.io/) templates for one-click scheduled
+PostgreSQL / MySQL backups with `hcli`. They **wrap the published cron-tab
+images** ([`terminal-cli-cron-postgres`](https://hub.docker.com/r/heronlabs/terminal-cli-cron-postgres)
+/ [`terminal-cli-cron-mysql`](https://hub.docker.com/r/heronlabs/terminal-cli-cron-mysql)),
+which already run as **root**, ship `crond`, and bake the run-once-on-start +
+every-12h schedule. The template's job is to add the EasyPanel env form and a
+file mount that overrides the schedule — no custom image build, no `deploy.command`.
 
-| Template | Engine | Runs |
-|---|---|---|
-| `psql-backup.json` | PostgreSQL | `hcli psql-backup` on start + every 12h |
-| `mysql-backup.json` | MySQL | `hcli mysql-backup` on start + every 12h |
+| Template | Engine | Image | Runs |
+|---|---|---|---|
+| `psql-backup.json` | PostgreSQL | `heronlabs/terminal-cli-cron-postgres` | `hcli psql-backup` on start + every 12h |
+| `mysql-backup.json` | MySQL | `heronlabs/terminal-cli-cron-mysql` | `hcli mysql-backup` on start + every 12h |
 
 ## Deploy
 
 1. In EasyPanel, open (or create) a project, then **Create Service → From Schema**.
 2. Paste the contents of `psql-backup.json` or `mysql-backup.json`.
 3. **Pin the image tag** — replace `CHANGE_ME` in `source.image`
-   (`heronlabs/terminal-cli:CHANGE_ME`) with a published release tag. See
-   [Image tag](#image-tag) below.
+   (`heronlabs/terminal-cli-cron-postgres:CHANGE_ME`) with a published release
+   tag. See [Image tag](#image-tag) below.
 4. Fill in the environment variables (see [Environment](#environment)).
-5. Deploy. The service runs an immediate backup, then `crond` keeps it running
-   on the schedule.
+5. Deploy.
 
-The template's `deploy.command` mirrors the cron images: it dumps `printenv` to
-`/etc/environment` (so `crond` inherits EasyPanel's injected env vars), runs one
-backup immediately, then starts `crond` in the foreground. The schedule itself
-lives in a file mount at `/etc/crontabs/root`.
+The image's own `CMD` runs as root: it dumps `printenv` to `/etc/environment`
+(so `crond` inherits EasyPanel's injected env vars), runs one backup
+immediately, then starts `crond` in the foreground. The template adds a file
+mount at `/etc/crontabs/root` that overlays the baked crontab, so you can change
+the cadence from the template without building a new image.
 
 ## Environment
 
@@ -46,19 +48,21 @@ tag — so the template cannot safely reference `:latest`. Replace the
 `CHANGE_ME` placeholder with a real release tag, e.g.:
 
 ```
-heronlabs/terminal-cli:v2.0.2
+heronlabs/terminal-cli-cron-postgres:v2.0.2
 ```
 
-Find published tags on the
-[Docker Hub tags page](https://hub.docker.com/r/heronlabs/terminal-cli/tags) or
-the repository's [GitHub releases](https://github.com/heronlabs/terminal-cli/releases).
+Find published tags on the cron-image Docker Hub tags pages —
+[terminal-cli-cron-postgres](https://hub.docker.com/r/heronlabs/terminal-cli-cron-postgres/tags)
+/ [terminal-cli-cron-mysql](https://hub.docker.com/r/heronlabs/terminal-cli-cron-mysql/tags) —
+or the repository's [GitHub releases](https://github.com/heronlabs/terminal-cli/releases).
 
 > Future follow-up (not in this change): publishing a moving `latest` tag from
 > CD would let templates omit the pin.
 
 ## Changing the schedule
 
-The cron expression lives in the file mount at `/etc/crontabs/root`:
+The cron expression lives in the file mount at `/etc/crontabs/root`, which
+overrides the schedule baked into the image:
 
 ```
 0 */12 * * *	. /etc/environment; hcli psql-backup
@@ -77,14 +81,16 @@ inherits the runtime env vars.
 
 > Only `*-backup` is scheduled here — rollup (restore) is intentionally manual.
 
-## Relationship to the cron-tab images
+## Relationship to the images
 
-These templates replace the need for the
-`cron-tab-postgres.dockerfile` / `cron-tab-mysql.dockerfile` images **for
-EasyPanel users**: instead of building and pushing a dedicated cron image, you
-run the generic published image and supply the cron from the template.
+These templates package the **cron-tab images**
+(`cron-tab-postgres.dockerfile` / `cron-tab-mysql.dockerfile`) for one-click
+EasyPanel deploy: the image supplies root + `crond` + the baked run-once and
+schedule, and the template supplies the env form and the schedule-override file
+mount.
 
-The `cron-tab-*` images remain available for other environments (plain Docker,
-`docker compose`, other orchestrators) where baking the cron into the image is
-preferable. See the repository [`Dockerfile`](../Dockerfile) and the main
+The plain [`heronlabs/terminal-cli`](https://hub.docker.com/r/heronlabs/terminal-cli)
+image is **not** used here — it runs non-root and ships no cron, so it's for
+interactive / one-off CLI use (`docker run … hcli psql-backup`), not scheduled
+backups. See the repository [`Dockerfile`](../Dockerfile) and the main
 [README](../README.md#docker--cron).

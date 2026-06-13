@@ -3,7 +3,6 @@
     {
       "data": {
         "deploy": {
-          "command": "printenv > /etc/environment && chmod 600 /etc/environment && hcli psql-backup && crond -f -d 8",
           "replicas": 1
         },
         "env": "DB_URL=postgres://user:password@host:5432/dbname\nAWS_S3_BUCKET_NAME=my-backup-bucket\nAWS_REGION=us-east-1\nAWS_ACCESS_KEY_ID=\nAWS_SECRET_ACCESS_KEY=",
@@ -17,7 +16,7 @@
         "projectName": "backups",
         "serviceName": "psql-backup",
         "source": {
-          "image": "heronlabs/terminal-cli:CHANGE_ME",
+          "image": "heronlabs/terminal-cli-cron-postgres:CHANGE_ME",
           "type": "image"
         }
       },

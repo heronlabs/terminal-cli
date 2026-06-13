@@ -184,9 +184,9 @@ The cron images dump `printenv` to `/etc/environment` so `crond` inherits the
 runtime variables injected by EasyPanel, run an immediate backup, then start
 `crond` in the foreground.
 
-> **Deploying on EasyPanel?** You don't need a custom cron image — paste-able
-> EasyPanel templates run the generic image with the cron defined in the
-> template. See [`easypanel/`](./easypanel/README.md).
+> **Deploying on EasyPanel?** Paste-able EasyPanel templates wrap these
+> cron-tab images for one-click deploy — env form plus a file mount that
+> overrides the schedule. See [`easypanel/`](./easypanel/README.md).
 
 Local stack for manual testing:
 

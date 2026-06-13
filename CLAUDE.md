@@ -102,9 +102,10 @@ is public, since npm only signs sigstore provenance for public source repos.
 spins up local psql/mysql DBs + CLI containers.
 
 `easypanel/` holds paste-able EasyPanel "Create from Schema" templates
-(`psql-backup.json`, `mysql-backup.json` + README) that run the generic published
-image with the backup cron defined **in the template** (file mount at
-`/etc/crontabs/root`) instead of a baked-in cron-tab image.
+(`psql-backup.json`, `mysql-backup.json` + README) that wrap the published
+`cron-tab-postgres` / `cron-tab-mysql` images for one-click EasyPanel deploy: the
+image supplies root + `crond` + the baked schedule, the template adds the env
+form and a file mount at `/etc/crontabs/root` that overrides the cron cadence.
 
 ## TypeScript
 
