@@ -10,3 +10,8 @@
 !tsconfig.json
 !tsconfig.bin.json
 !src
+
+# Integration round-trip scripts + SQL fixtures — copied into the test images
+# (integration-*.dockerfile) so the round-trip runs as hcli does in prod. Test
+# code and seed data only; contains no secrets.
+!tests/integration

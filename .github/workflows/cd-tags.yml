@@ -84,10 +84,6 @@ jobs:
         include:
           - image: terminal-cli
             dockerfile: Dockerfile
-          - image: terminal-cli-cron-postgres
-            dockerfile: cron-tab-postgres.dockerfile
-          - image: terminal-cli-cron-mysql
-            dockerfile: cron-tab-mysql.dockerfile
     steps:
       - uses: actions/checkout@v6
         with:

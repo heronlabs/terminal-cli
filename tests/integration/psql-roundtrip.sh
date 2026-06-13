@@ -53,7 +53,9 @@ seed_count="$(psql_scalar 'SELECT count(*) FROM users;')"
 assert_eq "seeded row count" "$seed_count" "3"
 
 log "Mutating: inserting 2 more rows incl. the sentinel (probe for data survival)"
-psql --quiet -c \
+# psql exits 0 on a SQL error by default; -v ON_ERROR_STOP=1 fails fast here so a
+# broken write aborts at the source instead of surfacing only in a later count.
+psql --quiet -v ON_ERROR_STOP=1 -c \
   "INSERT INTO users (name, email) VALUES ('$SENTINEL', 'sentinel@example.com'), ('Margaret Hamilton', 'margaret@example.com');"
 mutated_count="$(psql_scalar 'SELECT count(*) FROM users;')"
 assert_eq "mutated row count" "$mutated_count" "5"
@@ -69,7 +71,7 @@ gzip -t "$DUMP_GZ" || fail "backup file $DUMP_GZ is not a valid gzip"
 echo "ok: backup file is a non-empty valid gzip"
 
 log "Wiping the schema (guards against a no-op restore)"
-psql --quiet -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+psql --quiet -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
 table_present="$(psql_scalar "SELECT to_regclass('public.users') IS NOT NULL;")"
 assert_eq "users table gone after wipe" "$table_present" "f"
 

@@ -32,7 +32,7 @@ Scheduled, type-safe database backups with a single binary:
 
 - **One tool, two engines** — PostgreSQL (`pg_dump`/`psql`) and MySQL (`mysqldump`/`mysql`) behind one CLI.
 - **S3 or local** — push backups to S3 by default, or keep them on disk with `--local` (handy for seeding).
-- **Cron-ready containers** — purpose-built Dockerfiles run a backup on start and every 12 hours.
+- **Cron-ready container** — one image plus `easypanel/` inline-Dockerfile templates run a backup on start and every 12 hours.
 - **100% tested** — v8 coverage + Stryker mutation testing, both at 100% thresholds.
 
 ## Install
@@ -172,17 +172,13 @@ src/
 
 ## Docker & Cron
 
-Three Dockerfiles:
-
-| File | Purpose |
-|---|---|
-| `Dockerfile` | General-purpose image with `hcli` on `PATH` and both DB clients |
-| `cron-tab-postgres.dockerfile` | PostgreSQL cron container — backup on start + every 12h |
-| `cron-tab-mysql.dockerfile` | MySQL cron container — backup on start + every 12h |
-
-The cron images dump `printenv` to `/etc/environment` so `crond` inherits the
-runtime variables injected by EasyPanel, run an immediate backup, then start
-`crond` in the foreground.
+One published image — `heronlabs/terminal-cli` (built from `Dockerfile`) — carries
+`hcli` on `PATH`, both DB clients, and busybox `crond`. Scheduled backups are
+deployed from the inline-Dockerfile templates under [`easypanel/`](easypanel/):
+each one is `FROM heronlabs/terminal-cli:<tag>`, adds a 12-hourly crontab, and
+runs an immediate backup before starting `crond` in the foreground (dumping
+`printenv` to `/etc/environment` so cron inherits the runtime variables EasyPanel
+injects). See [`easypanel/README.md`](easypanel/README.md) for deploy steps.
 
 Local stack for manual testing:
 
@@ -209,7 +205,7 @@ then fail), so schedule it as root.
 
 ### Scheduling (every 12h)
 
-Install the CLI on the host (Ubuntu 22.04) and match the DB cron containers'
+Install the CLI on the host (Ubuntu 22.04) and match the DB backup templates'
 cadence with a host crontab line:
 
 ```bash

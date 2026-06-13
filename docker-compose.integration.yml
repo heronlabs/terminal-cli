@@ -1,0 +1,59 @@
+# Self-contained integration stack: spins up throwaway PostgreSQL/MySQL servers
+# and runs the backup/rollup round-trip inside the prod-shaped test images, so
+# the pipeline is exercised exactly as hcli runs in production. Used by CI
+# (`docker compose -f docker-compose.integration.yml run --build --rm <svc>`)
+# and reproducible locally. DBs are ephemeral (no volumes) and in-network only.
+services:
+  postgres:
+    image: postgres:12-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydb
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d mydb']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    # Native-password auth so the alpine mariadb-client (which rejects MySQL 8's
+    # default caching_sha2_password) can connect as the `mysql` app user.
+    command: ['--default-authentication-plugin=mysql_native_password']
+    environment:
+      MYSQL_DATABASE: mydb
+      MYSQL_USER: mysql
+      MYSQL_PASSWORD: mysql
+      MYSQL_ROOT_PASSWORD: root
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h localhost -uroot -proot']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  psql-integration:
+    build:
+      context: .
+      dockerfile: integration-postgres.dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: postgres://postgres:postgres@postgres:5432/mydb
+      AWS_REGION: us-east-1
+      AWS_S3_BUCKET_NAME: dummy-bucket
+
+  mysql-integration:
+    build:
+      context: .
+      dockerfile: integration-mysql.dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: mysql://mysql:mysql@mysql:3306/mydb
+      AWS_REGION: us-east-1
+      AWS_S3_BUCKET_NAME: dummy-bucket

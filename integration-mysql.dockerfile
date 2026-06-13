@@ -21,15 +21,21 @@ WORKDIR /app
 
 # hadolint ignore=DL3018
 RUN apk upgrade --no-cache \
-  && apk add --no-cache postgresql-client bash
+  && apk add --no-cache \
+  mysql-client \
+  mariadb-client \
+  mariadb-connector-c \
+  bash
 
 COPY --from=builder /app/bin ./bin
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
+COPY tests/integration ./tests/integration
 
 RUN printf '#!/bin/sh\nexec node /app/bin/src/main.js "$@"\n' > /usr/local/bin/hcli \
-  && chmod +x /usr/local/bin/hcli
+  && chmod +x /usr/local/bin/hcli \
+  && chown -R node:node /app
 
-RUN printf '0 */12 * * *\t. /etc/environment; hcli psql-backup\n' > /etc/crontabs/root
+USER node
 
-CMD ["sh", "-c", "printenv > /etc/environment && chmod 600 /etc/environment && hcli psql-backup && crond -f -d 8"]
+CMD ["bash", "tests/integration/mysql-roundtrip.sh"]

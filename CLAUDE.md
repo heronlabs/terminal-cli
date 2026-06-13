@@ -97,9 +97,14 @@ is public, since npm only signs sigstore provenance for public source repos.
 
 ## Docker
 
-`Dockerfile` (general), `cron-tab-postgres.dockerfile`, `cron-tab-mysql.dockerfile`
-(EasyPanel cron containers: backup on start + every 12h). `docker-compose.yml`
-spins up local psql/mysql DBs + CLI containers.
+One generic image, `heronlabs/terminal-cli` (built from `Dockerfile`), carries
+the CLI + all DB clients + the `hcli` wrapper + busybox `crond`. Scheduled
+backups are deployed via `easypanel/` inline-Dockerfile templates
+(`psql-backup.json`, `mysql-backup.json`) that `FROM` that base, add a crontab,
+and run `crond` — see `easypanel/README.md`. `docker-compose.yml` spins up local
+psql/mysql DBs + CLI containers; `docker-compose.integration.yml` +
+`integration-{postgres,mysql}.dockerfile` run the backup/rollup round-trip
+integration tests inside prod-shaped images.
 
 ## TypeScript
 
