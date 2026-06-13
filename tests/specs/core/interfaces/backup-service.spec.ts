@@ -1,5 +1,5 @@
-import {Logger} from '@nestjs/common';
 import {faker} from '@faker-js/faker';
+import {Logger} from '@nestjs/common';
 
 import {BackupService} from '../../../../src/core/interfaces/backup-service';
 import {S3StorageService} from '../../../../src/infrastructure/storage/services/s3-storage-service';
@@ -22,10 +22,7 @@ describe('Given the backup service abstract base', () => {
   let service: TestBackupService;
 
   beforeEach(() => {
-    service = new TestBackupService(
-      {} as Logger,
-      {} as S3StorageService,
-    );
+    service = new TestBackupService({} as Logger, {} as S3StorageService);
   });
 
   describe('Given an explicit filename is provided', () => {
@@ -42,7 +39,11 @@ describe('Given the backup service abstract base', () => {
     });
 
     it('Should keep an empty-string filename rather than falling back', () => {
-      const result = service.resolve('', faker.string.alphanumeric(8), 'sql.gz');
+      const result = service.resolve(
+        '',
+        faker.string.alphanumeric(8),
+        'sql.gz',
+      );
 
       expect(result).toBe('');
     });
