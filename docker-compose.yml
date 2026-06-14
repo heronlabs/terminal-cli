@@ -1,9 +1,7 @@
 services:
-  cli-psql-database:
-    container_name: cli-psql-database
-    platform: linux/amd64
-    restart: unless-stopped
+  postgres:
     image: postgres:12-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -12,83 +10,55 @@ services:
       - psql-data:/var/lib/postgresql/data
     ports:
       - '5434:5432'
-    networks:
-      - cli-db-network
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -d mydb']
       interval: 5s
       timeout: 5s
       retries: 5
 
-  cli-psql:
-    container_name: cli-psql
-    platform: linux/amd64
-    restart: unless-stopped
-    build:
-      context: .
-    depends_on:
-      cli-psql-database:
-        condition: service_healthy
-    environment:
-      DB_URL: postgres://postgres:postgres@cli-psql-database:5432/mydb
-      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION}
-    command: ['sleep', 'infinity']
-    networks:
-      - cli-db-network
-
-  cli-mysql-database:
-    container_name: cli-mysql-database
-    platform: linux/amd64
-    restart: unless-stopped
+  mysql:
     image: mysql:8.0
+    restart: unless-stopped
+    command: ['--default-authentication-plugin=mysql_native_password']
     environment:
+      MYSQL_DATABASE: mydb
       MYSQL_USER: mysql
       MYSQL_PASSWORD: mysql
-      MYSQL_DATABASE: mydb
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_ROOT_PASSWORD: root
     volumes:
       - mysql-data:/var/lib/mysql
     ports:
       - '3307:3306'
-    networks:
-      - cli-db-network
     healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD:-root} || exit 1',
-        ]
+      test: ['CMD-SHELL', 'mysqladmin ping -h localhost -uroot -proot']
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-  cli-mysql:
-    container_name: cli-mysql
-    platform: linux/amd64
-    restart: unless-stopped
+  psql-integration:
     build:
       context: .
+      dockerfile: integration-postgres.dockerfile
     depends_on:
-      cli-mysql-database:
+      postgres:
         condition: service_healthy
     environment:
-      DB_URL: mysql://mysql:mysql@cli-mysql-database:3306/mydb
-      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION}
-    command: ['sleep', 'infinity']
-    networks:
-      - cli-db-network
+      DB_URL: postgres://postgres:postgres@postgres:5432/mydb
+      AWS_REGION: us-east-1
+      AWS_S3_BUCKET_NAME: dummy-bucket
+
+  mysql-integration:
+    build:
+      context: .
+      dockerfile: integration-mysql.dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: mysql://mysql:mysql@mysql:3306/mydb
+      AWS_REGION: us-east-1
+      AWS_S3_BUCKET_NAME: dummy-bucket
 
 volumes:
   psql-data: {}
   mysql-data: {}
-
-networks:
-  cli-db-network:
-    name: cli-db-network
-    driver: bridge

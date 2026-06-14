@@ -75,11 +75,18 @@ subprocesses via env vars.
 
 ### CI (`.github/workflows/ci-cli.yml`)
 
-Triggers on PR to `main`. Three jobs:
+Triggers on PR to `main` (plus `workflow_dispatch`). A sequential gate chain
+that fans out at the end — each job `needs` the previous, so the first failure
+halts the rest:
 
-1. **setup** — install deps, `pnpm build`
-2. **audit** (needs setup) — `pnpm dep:cruise` + `pnpm audit --prod --audit-level=high`
-3. **lint-test** (needs setup) — lint, unit tests + coverage upload, mutation tests + report upload
+`install → audit → lint → unit → { mutation ∥ integration-postgres ∥ integration-mysql }`
+
+1. **install** — install deps, `pnpm build` (caches `node_modules` + `bin`)
+2. **audit** — `pnpm dep:cruise` + `pnpm audit --prod --audit-level=high`
+3. **lint** — `pnpm lint:check`
+4. **unit** — `pnpm test:unit` + coverage artifact
+5. **mutation** — `pnpm test:mutation` + score step-summary + report artifact
+6. **integration-test-{postgres,mysql}** — `docker compose run --build --rm <svc>-integration` round-trip, with a `==>`/`ok:`/`FAIL:` step-summary (these two run in parallel with **mutation**, all gated on **unit**)
 
 ### CD — Releases (`.github/workflows/cd-tags.yml`)
 
@@ -97,9 +104,15 @@ is public, since npm only signs sigstore provenance for public source repos.
 
 ## Docker
 
-`Dockerfile` (general), `cron-tab-postgres.dockerfile`, `cron-tab-mysql.dockerfile`
-(EasyPanel cron containers: backup on start + every 12h). `docker-compose.yml`
-spins up local psql/mysql DBs + CLI containers.
+One generic image, `heronlabs/terminal-cli` (built from `Dockerfile`), carries
+the CLI + all DB clients + the `hcli` wrapper + busybox `crond`. Scheduled
+backups are deployed via `easypanel/` inline-Dockerfile templates
+(`psql-backup.json`, `mysql-backup.json`) that `FROM` that base, add a crontab,
+and run `crond` — see `easypanel/README.md`. `docker-compose.yml` provides the
+local psql/mysql DBs (ports 5434/3307) plus the `psql-integration`/
+`mysql-integration` runner services that execute the backup/rollup round-trip
+integration tests inside the prod-shaped `integration-{postgres,mysql}.dockerfile`
+images (`docker compose run --build --rm <svc>-integration`).
 
 ## TypeScript
 

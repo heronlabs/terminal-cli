@@ -1,4 +1,3 @@
-# node:22.22.3-alpine3.24 — pinned by digest for reproducible builds + stable CVE scan
 FROM node:22.22.3-alpine3.24@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4 AS builder
 
 ENV CI=true
@@ -13,7 +12,6 @@ RUN pnpm install --frozen-lockfile \
   && pnpm build \
   && pnpm prune --prod
 
-# node:22.22.3-alpine3.24 — pinned by digest for reproducible builds + stable CVE scan
 FROM node:22.22.3-alpine3.24@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4 AS runtime
 
 ENV NODE_ENV=production
@@ -26,10 +24,12 @@ RUN apk upgrade --no-cache \
 COPY --from=builder /app/bin ./bin
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
+COPY tests/integration ./tests/integration
 
 RUN printf '#!/bin/sh\nexec node /app/bin/src/main.js "$@"\n' > /usr/local/bin/hcli \
-  && chmod +x /usr/local/bin/hcli
+  && chmod +x /usr/local/bin/hcli \
+  && chown -R node:node /app
 
-RUN printf '0 */12 * * *\t. /etc/environment; hcli psql-backup\n' > /etc/crontabs/root
+USER node
 
-CMD ["sh", "-c", "printenv > /etc/environment && chmod 600 /etc/environment && hcli psql-backup && crond -f -d 8"]
+CMD ["bash", "tests/integration/psql-roundtrip.sh"]
