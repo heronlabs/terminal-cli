@@ -109,7 +109,20 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      - run: pnpm test:mutation
+      - name: Mutation tests
+        run: |
+          set -o pipefail
+          pnpm test:mutation 2>&1 | tee /tmp/mutation.log
+
+      - name: Mutation summary
+        if: always()
+        run: |
+          {
+            echo "### Mutation testing"
+            echo '```'
+            grep -E 'Mutation score' /tmp/mutation.log || echo "see uploaded mutation-reports artifact"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - if: always()
         name: Upload mutation reports
@@ -128,7 +141,19 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: PostgreSQL round-trip (prod image)
-        run: docker compose run --build --rm psql-integration
+        run: |
+          set -o pipefail
+          docker compose run --build --rm psql-integration 2>&1 | tee /tmp/psql-it.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### PostgreSQL backup→rollup round-trip"
+            echo '```'
+            grep -E '^(==>|ok:|FAIL:)' /tmp/psql-it.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Tear down
         if: always()
@@ -142,7 +167,19 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: MySQL round-trip (prod image)
-        run: docker compose run --build --rm mysql-integration
+        run: |
+          set -o pipefail
+          docker compose run --build --rm mysql-integration 2>&1 | tee /tmp/mysql-it.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### MySQL backup→rollup round-trip"
+            echo '```'
+            grep -E '^(==>|ok:|FAIL:)' /tmp/mysql-it.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Tear down
         if: always()

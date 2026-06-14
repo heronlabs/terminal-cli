@@ -35,7 +35,7 @@
   },
   "timeoutMS": 15000,
   "vitest": {
-    "configFile": "vitest.config.ts"
+    "configFile": "vitest.stryker.config.ts"
   },
   "warnings": {
     "preprocessorErrors": true,
