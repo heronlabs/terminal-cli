@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  setup:
+  install:
     name: 'Install & Build'
     runs-on: ubuntu-latest
     steps:
@@ -45,7 +45,7 @@ jobs:
         run: pnpm build
 
   audit:
-    needs: setup
+    needs: install
     name: 'Audit & Supply Chain'
     runs-on: ubuntu-latest
     steps:
@@ -71,9 +71,68 @@ jobs:
 
       - run: pnpm audit --prod --audit-level=high
 
-  lint-test:
-    needs: setup
-    name: 'Lint & Test'
+  lint:
+    needs: audit
+    name: 'Lint'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: bin
+          key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'src/**/*.ts', 'tsconfig*.json', 'nest-cli.json') }}
+
+      - run: pnpm lint:check
+
+  unit:
+    needs: lint
+    name: 'Unit Tests'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: bin
+          key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'src/**/*.ts', 'tsconfig*.json', 'nest-cli.json') }}
+
+      - run: pnpm test:unit
+
+      - if: always()
+        name: Upload unit-test coverage
+        uses: actions/upload-artifact@v5
+        with:
+          name: unit-test-coverage
+          path: coverage/
+          retention-days: 14
+          if-no-files-found: warn
+
+  mutation:
+    needs: unit
+    name: 'Mutation Tests'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -95,19 +154,6 @@ jobs:
         with:
           path: bin
           key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'src/**/*.ts', 'tsconfig*.json', 'nest-cli.json') }}
-
-      - run: pnpm lint:check
-
-      - run: pnpm test:unit
-
-      - if: always()
-        name: Upload unit-test coverage
-        uses: actions/upload-artifact@v5
-        with:
-          name: unit-test-coverage
-          path: coverage/
-          retention-days: 14
-          if-no-files-found: warn
 
       - name: Mutation tests
         run: |
@@ -139,7 +185,7 @@ jobs:
           if-no-files-found: warn
 
   integration-test-postgres:
-    needs: setup
+    needs: unit
     name: 'Integration Test (PostgreSQL)'
     runs-on: ubuntu-latest
     steps:
@@ -165,7 +211,7 @@ jobs:
         run: docker compose down -v
 
   integration-test-mysql:
-    needs: setup
+    needs: unit
     name: 'Integration Test (MySQL)'
     runs-on: ubuntu-latest
     steps:
