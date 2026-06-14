@@ -101,10 +101,11 @@ One generic image, `heronlabs/terminal-cli` (built from `Dockerfile`), carries
 the CLI + all DB clients + the `hcli` wrapper + busybox `crond`. Scheduled
 backups are deployed via `easypanel/` inline-Dockerfile templates
 (`psql-backup.json`, `mysql-backup.json`) that `FROM` that base, add a crontab,
-and run `crond` — see `easypanel/README.md`. `docker-compose.yml` spins up local
-psql/mysql DBs + CLI containers; `docker-compose.integration.yml` +
-`integration-{postgres,mysql}.dockerfile` run the backup/rollup round-trip
-integration tests inside prod-shaped images.
+and run `crond` — see `easypanel/README.md`. `docker-compose.yml` provides the
+local psql/mysql DBs (ports 5434/3307) plus the `psql-integration`/
+`mysql-integration` runner services that execute the backup/rollup round-trip
+integration tests inside the prod-shaped `integration-{postgres,mysql}.dockerfile`
+images (`docker compose run --build --rm <svc>-integration`).
 
 ## TypeScript
 

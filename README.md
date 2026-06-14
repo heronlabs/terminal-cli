@@ -180,10 +180,15 @@ runs an immediate backup before starting `crond` in the foreground (dumping
 `printenv` to `/etc/environment` so cron inherits the runtime variables EasyPanel
 injects). See [`easypanel/README.md`](easypanel/README.md) for deploy steps.
 
-Local stack for manual testing:
+Local stack for manual testing — `docker-compose.yml` runs the psql + mysql DBs
+(exposed on ports 5434/3307) and the `psql-integration`/`mysql-integration`
+services that run the backup/rollup round-trip inside the prod-shaped
+`integration-{postgres,mysql}.dockerfile` images:
 
 ```bash
-docker compose up        # spins up psql + mysql DBs and CLI containers
+docker compose up postgres mysql              # local DBs only
+docker compose run --build --rm psql-integration   # PostgreSQL round-trip
+docker compose run --build --rm mysql-integration  # MySQL round-trip
 ```
 
 ## EasyPanel host backup

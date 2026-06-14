@@ -1,4 +1,3 @@
-# node:22.22.3-alpine3.24 — pinned by digest for reproducible builds + stable CVE scan
 FROM node:22.22.3-alpine3.24@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4 AS builder
 
 ENV CI=true
@@ -13,7 +12,6 @@ RUN pnpm install --frozen-lockfile \
   && pnpm build \
   && pnpm prune --prod
 
-# node:22.22.3-alpine3.24 — pinned by digest for reproducible builds + stable CVE scan
 FROM node:22.22.3-alpine3.24@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4 AS runtime
 
 ENV NODE_ENV=production

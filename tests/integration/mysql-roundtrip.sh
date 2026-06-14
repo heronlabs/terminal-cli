@@ -1,18 +1,3 @@
-# MySQL/MariaDB backup/rollup round-trip integration test.
-#
-# Drives the real built `hcli` binary (node bin/src/main.js) against a live
-# MySQL server using the MariaDB clients the CLI shells out to, proving the
-# `mariadb-dump | gzip` backup and `gunzip | mariadb` rollup pipelines produce a
-# genuinely restorable artifact — the thing the mocked unit tests can't prove.
-#
-# Flow: seed (rollup a gzipped .sql) -> count==3 -> mutate to 5 (+ sentinel)
-#       -> backup -> drop+recreate the database (count gone) -> rollup the backup
-#       -> count==5 and sentinel survives.
-#
-# Mirrors psql-roundtrip.sh; differs only in clients (mariadb / mariadb-dump),
-# auth (MYSQL_PWD), and the wipe (DROP DATABASE vs DROP SCHEMA).
-#
-# Shebang-less by repo convention (run via `bash <file>`); see .shellcheckrc.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -26,10 +11,6 @@ SEED_GZ="/tmp/mysql-seed.sql.gz"
 DUMP_GZ="/tmp/mysql-dump.sql.gz"
 SENTINEL="sentinel-row"
 
-# Derive client connection vars from DB_URL (mysql://user:pass@host:port/db) so
-# the direct mariadb assertions hit the same server the CLI does. The CLI parses
-# DB_URL itself; this only powers our out-of-band checks. MYSQL_PWD carries the
-# password to the client, exactly as the CLI's dump/restore scripts do.
 proto_stripped="${DB_URL#*://}"
 creds="${proto_stripped%%@*}"
 hostpart="${proto_stripped#*@}"
@@ -41,12 +22,10 @@ DB_NAME="${hostpart#*/}"
 MYSQL_PWD="${creds#*:}"
 export MYSQL_PWD
 
-# mariadb_exec "<sql>" — run a statement against the target database.
 mariadb_exec() {
   mariadb -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" "$DB_NAME" -e "$1"
 }
 
-# mariadb_scalar "<sql>" — run a query, return a single trimmed scalar value.
 mariadb_scalar() {
   mariadb -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" --skip-column-names --batch \
     "$DB_NAME" -e "$1" | tr -d '[:space:]'
@@ -79,7 +58,6 @@ gzip -t "$DUMP_GZ" || fail "backup file $DUMP_GZ is not a valid gzip"
 echo "ok: backup file is a non-empty valid gzip"
 
 log "Wiping the database (guards against a no-op restore)"
-# Connect without selecting $DB_NAME so the DROP doesn't pull the rug out.
 mariadb -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" \
   -e "DROP DATABASE \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\`;"
 table_count="$(mariadb_scalar \

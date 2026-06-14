@@ -1,15 +1,3 @@
-# PostgreSQL backup/rollup round-trip integration test.
-#
-# Drives the real built `hcli` binary (node bin/src/main.js) against a live
-# PostgreSQL server, proving the `pg_dump | gzip` backup and `gunzip | psql`
-# rollup pipelines produce a genuinely restorable artifact — the thing the
-# mocked unit tests can't prove.
-#
-# Flow: seed (rollup a gzipped .sql) -> count==3 -> mutate to 5 (+ sentinel)
-#       -> backup -> wipe schema (count gone) -> rollup the backup -> count==5
-#       and sentinel survives.
-#
-# Shebang-less by repo convention (run via `bash <file>`); see .shellcheckrc.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -23,9 +11,6 @@ SEED_GZ="/tmp/psql-seed.sql.gz"
 DUMP_GZ="/tmp/psql-dump.sql.gz"
 SENTINEL="sentinel-row"
 
-# Derive libpq env vars from DB_URL (postgres://user:pass@host:port/db) so the
-# direct psql assertions hit the same server the CLI does. The CLI parses
-# DB_URL itself; this only powers our out-of-band checks.
 proto_stripped="${DB_URL#*://}"
 creds="${proto_stripped%%@*}"
 hostpart="${proto_stripped#*@}"
@@ -37,7 +22,6 @@ PGPORT="${hostport#*:}"
 PGDATABASE="${hostpart#*/}"
 export PGUSER PGPASSWORD PGHOST PGPORT PGDATABASE
 
-# psql_scalar "<sql>" — run a query, return a single trimmed scalar value.
 psql_scalar() {
   psql --no-align --tuples-only --quiet -c "$1" | tr -d '[:space:]'
 }
@@ -53,8 +37,6 @@ seed_count="$(psql_scalar 'SELECT count(*) FROM users;')"
 assert_eq "seeded row count" "$seed_count" "3"
 
 log "Mutating: inserting 2 more rows incl. the sentinel (probe for data survival)"
-# psql exits 0 on a SQL error by default; -v ON_ERROR_STOP=1 fails fast here so a
-# broken write aborts at the source instead of surfacing only in a later count.
 psql --quiet -v ON_ERROR_STOP=1 -c \
   "INSERT INTO users (name, email) VALUES ('$SENTINEL', 'sentinel@example.com'), ('Margaret Hamilton', 'margaret@example.com');"
 mutated_count="$(psql_scalar 'SELECT count(*) FROM users;')"
