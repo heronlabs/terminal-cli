@@ -117,10 +117,15 @@ jobs:
       - name: Mutation summary
         if: always()
         run: |
+          score=$(awk -F'|' '/^All files/ {gsub(/ /, "", $2); print $2; exit}' /tmp/mutation.log 2>/dev/null)
           {
             echo "### Mutation testing"
             echo '```'
-            grep -E 'Mutation score' /tmp/mutation.log || echo "see uploaded mutation-reports artifact"
+            if [ -n "$score" ]; then
+              echo "Mutation score: ${score}%"
+            else
+              echo "see uploaded mutation-reports artifact"
+            fi
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
