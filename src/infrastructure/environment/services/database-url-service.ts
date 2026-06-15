@@ -12,7 +12,10 @@ export class DatabaseUrlService {
       return [value, undefined];
     }
 
-    return [value.slice(0, index), value.slice(index + delimiter.length)];
+    const head = value.slice(0, index);
+    const tail = value.slice(index + delimiter.length);
+
+    return [head, tail];
   }
 
   private splitLast(value: string, delimiter: string): [string, string] {
@@ -22,7 +25,10 @@ export class DatabaseUrlService {
       return ['', value];
     }
 
-    return [value.slice(0, index), value.slice(index + delimiter.length)];
+    const head = value.slice(0, index);
+    const tail = value.slice(index + delimiter.length);
+
+    return [head, tail];
   }
 
   parse(databaseUrl: string) {
