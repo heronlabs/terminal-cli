@@ -12,7 +12,10 @@ export class EnvironmentService {
     try {
       databaseUrl = await this.ssmConfigService.getOrThrow('DB_URL');
     } catch (error) {
-      return {ok: false as const, error: error as Error};
+      return {
+        ok: false as const,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
     }
 
     return this.databaseUrlService.parse(databaseUrl);
