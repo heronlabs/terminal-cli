@@ -62,7 +62,7 @@ export class DatabaseUrlService {
     } catch (error) {
       return {
         ok: false as const,
-        error: error instanceof Error ? error : new Error(String(error)),
+        error: error instanceof Error ? error : new Error('Invalid DB_URL'),
       };
     }
   }

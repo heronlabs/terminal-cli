@@ -35,7 +35,7 @@ describe('Given a database URL service', () => {
 
     expect(await service.parse()).toEqual({
       ok: false,
-      error: new Error('boom'),
+      error: new Error('Invalid DB_URL'),
     });
   });
 
