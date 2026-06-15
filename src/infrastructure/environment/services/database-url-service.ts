@@ -1,7 +1,10 @@
+import {ConfigService as SsmConfigService} from '@heronlabs/env-ssm';
 import {Injectable} from '@nestjs/common';
 
 @Injectable()
 export class DatabaseUrlService {
+  constructor(private readonly ssmConfigService: SsmConfigService) {}
+
   private splitFirst(
     value: string,
     delimiter: string,
@@ -31,8 +34,10 @@ export class DatabaseUrlService {
     return [head, tail];
   }
 
-  parse(databaseUrl: string) {
+  async parse() {
     try {
+      const databaseUrl = await this.ssmConfigService.getOrThrow('DB_URL');
+
       const [, rest = ''] = this.splitFirst(databaseUrl, '://');
 
       const [userinfo, remainder] = this.splitLast(rest, '@');
@@ -54,8 +59,11 @@ export class DatabaseUrlService {
       }
 
       return {ok: true as const, connection};
-    } catch {
-      return {ok: false as const, error: new Error('Invalid DB_URL')};
+    } catch (error) {
+      return {
+        ok: false as const,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
     }
   }
 }

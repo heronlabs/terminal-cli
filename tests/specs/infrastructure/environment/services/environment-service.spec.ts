@@ -5,8 +5,7 @@ import {EnvironmentService} from '../../../../../src/infrastructure/environment/
 import {
   configService,
   createTestingModule,
-  databaseUrl,
-  ssmConfigService,
+  databaseConnection,
 } from '../../../../__mocks__/create-testing-module';
 
 describe('Given a service', () => {
@@ -19,28 +18,10 @@ describe('Given a service', () => {
   });
 
   describe('Given database resolution', () => {
-    it('Should resolve DB_URL through env-ssm getOrThrow', async () => {
-      ssmConfigService.getOrThrow.mockResolvedValueOnce(databaseUrl);
-
-      await service.database();
-
-      expect(ssmConfigService.getOrThrow).toHaveBeenCalledWith('DB_URL');
-    });
-
-    it('Should return the original error when DB_URL cannot be resolved', async () => {
-      const error = new Error(faker.lorem.sentence());
-
-      ssmConfigService.getOrThrow.mockRejectedValueOnce(error);
-
-      expect(await service.database()).toEqual({ok: false, error});
-    });
-
-    it('Should wrap a non-Error rejection in an Error', async () => {
-      ssmConfigService.getOrThrow.mockRejectedValueOnce('boom');
-
+    it('Should delegate to the database URL parser', async () => {
       expect(await service.database()).toEqual({
-        ok: false,
-        error: new Error('boom'),
+        ok: true,
+        connection: databaseConnection,
       });
     });
   });

@@ -1,4 +1,3 @@
-import {ConfigService as SsmConfigService} from '@heronlabs/env-ssm';
 import {Injectable} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 
@@ -6,19 +5,8 @@ import {DatabaseUrlService} from './database-url-service';
 
 @Injectable()
 export class EnvironmentService {
-  async database() {
-    let databaseUrl: string;
-
-    try {
-      databaseUrl = await this.ssmConfigService.getOrThrow('DB_URL');
-    } catch (error) {
-      return {
-        ok: false as const,
-        error: error instanceof Error ? error : new Error(String(error)),
-      };
-    }
-
-    return this.databaseUrlService.parse(databaseUrl);
+  database() {
+    return this.databaseUrlService.parse();
   }
 
   get storage() {
@@ -29,7 +17,6 @@ export class EnvironmentService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly ssmConfigService: SsmConfigService,
     private readonly databaseUrlService: DatabaseUrlService,
   ) {}
 }
