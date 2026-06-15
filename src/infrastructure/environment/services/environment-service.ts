@@ -6,19 +6,7 @@ import {DatabaseUrlService} from './database-url-service';
 
 @Injectable()
 export class EnvironmentService {
-  async database(): Promise<
-    | {
-        ok: true;
-        connection: {
-          host: string;
-          port: string;
-          name: string;
-          user: string;
-          password: string;
-        };
-      }
-    | {ok: false; error: Error}
-  > {
+  async database() {
     let databaseUrl: string;
 
     try {
