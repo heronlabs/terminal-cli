@@ -2,6 +2,29 @@ import {Injectable} from '@nestjs/common';
 
 @Injectable()
 export class DatabaseUrlService {
+  private splitFirst(
+    value: string,
+    delimiter: string,
+  ): [string, string | undefined] {
+    const index = value.indexOf(delimiter);
+
+    if (index === -1) {
+      return [value, undefined];
+    }
+
+    return [value.slice(0, index), value.slice(index + delimiter.length)];
+  }
+
+  private splitLast(value: string, delimiter: string): [string, string] {
+    const index = value.lastIndexOf(delimiter);
+
+    if (index === -1) {
+      return ['', value];
+    }
+
+    return [value.slice(0, index), value.slice(index + delimiter.length)];
+  }
+
   parse(databaseUrl: string) {
     try {
       const [, rest = ''] = this.splitFirst(databaseUrl, '://');
@@ -28,25 +51,5 @@ export class DatabaseUrlService {
     } catch {
       return {ok: false as const, error: new Error('Invalid DB_URL')};
     }
-  }
-
-  splitFirst(value: string, delimiter: string): [string, string | undefined] {
-    const index = value.indexOf(delimiter);
-
-    if (index === -1) {
-      return [value, undefined];
-    }
-
-    return [value.slice(0, index), value.slice(index + delimiter.length)];
-  }
-
-  splitLast(value: string, delimiter: string): [string, string] {
-    const index = value.lastIndexOf(delimiter);
-
-    if (index === -1) {
-      return ['', value];
-    }
-
-    return [value.slice(0, index), value.slice(index + delimiter.length)];
   }
 }
