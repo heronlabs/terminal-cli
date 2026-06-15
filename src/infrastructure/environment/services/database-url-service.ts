@@ -2,18 +2,7 @@ import {Injectable} from '@nestjs/common';
 
 @Injectable()
 export class DatabaseUrlService {
-  parse(databaseUrl: string):
-    | {
-        ok: true;
-        connection: {
-          host: string;
-          port: string;
-          name: string;
-          user: string;
-          password: string;
-        };
-      }
-    | {ok: false; error: Error} {
+  parse(databaseUrl: string) {
     const [, rest] = this.splitFirst(databaseUrl, '://');
 
     if (rest === undefined) {
