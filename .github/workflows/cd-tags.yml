@@ -44,7 +44,7 @@ jobs:
           spec: ${{ inputs.spec || 'patch' }}
 
   publish-npm:
-    name: 'Publish to npm'
+    name: 'Publish package to npm'
     needs: setup-tags
     runs-on: ubuntu-latest
     permissions:
@@ -90,7 +90,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish-docker:
-    name: 'Publish image'
+    name: 'Publish image to docker'
     needs: setup-tags
     runs-on: ubuntu-latest
     permissions:
