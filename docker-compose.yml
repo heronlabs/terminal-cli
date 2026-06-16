@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: 'S3cr#t/P@ss:w%rd'
       POSTGRES_DB: mydb
     volumes:
       - psql-data:/var/lib/postgresql/data
@@ -23,7 +23,7 @@ services:
     environment:
       MYSQL_DATABASE: mydb
       MYSQL_USER: mysql
-      MYSQL_PASSWORD: mysql
+      MYSQL_PASSWORD: 'S3cr#t/P@ss:w%rd'
       MYSQL_ROOT_PASSWORD: root
     volumes:
       - mysql-data:/var/lib/mysql
@@ -43,7 +43,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DB_URL: postgres://postgres:postgres@postgres:5432/mydb
+      DB_URL: 'postgres://postgres:S3cr#t/P@ss:w%rd@postgres:5432/mydb'
       AWS_REGION: us-east-1
       AWS_S3_BUCKET_NAME: dummy-bucket
 
@@ -55,7 +55,7 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      DB_URL: mysql://mysql:mysql@mysql:3306/mydb
+      DB_URL: 'mysql://mysql:S3cr#t/P@ss:w%rd@mysql:3306/mydb'
       AWS_REGION: us-east-1
       AWS_S3_BUCKET_NAME: dummy-bucket
 
