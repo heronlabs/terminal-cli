@@ -56,6 +56,91 @@ describe('Given a database URL service', () => {
     });
   });
 
+  it('Should strip a query string from the database name', async () => {
+    const host = faker.internet.domainName();
+    const port = faker.number.int({min: 1024, max: 65535}).toString();
+    const name = faker.string.alphanumeric(10);
+    const user = faker.string.alphanumeric(10);
+    const password = faker.string.alphanumeric(10);
+
+    ssmConfigService.getOrThrow.mockResolvedValueOnce(
+      `postgres://${user}:${password}@${host}:${port}/${name}?sslmode=disable`,
+    );
+
+    expect(await service.parse()).toEqual({
+      ok: true,
+      connection: {host, port, name, user, password},
+    });
+  });
+
+  it('Should strip a fragment from the database name', async () => {
+    const host = faker.internet.domainName();
+    const port = faker.number.int({min: 1024, max: 65535}).toString();
+    const name = faker.string.alphanumeric(10);
+    const user = faker.string.alphanumeric(10);
+    const password = faker.string.alphanumeric(10);
+
+    ssmConfigService.getOrThrow.mockResolvedValueOnce(
+      `postgres://${user}:${password}@${host}:${port}/${name}#section`,
+    );
+
+    expect(await service.parse()).toEqual({
+      ok: true,
+      connection: {host, port, name, user, password},
+    });
+  });
+
+  it('Should strip both a query string and a fragment from the database name', async () => {
+    const host = faker.internet.domainName();
+    const port = faker.number.int({min: 1024, max: 65535}).toString();
+    const name = faker.string.alphanumeric(10);
+    const user = faker.string.alphanumeric(10);
+    const password = faker.string.alphanumeric(10);
+
+    ssmConfigService.getOrThrow.mockResolvedValueOnce(
+      `postgres://${user}:${password}@${host}:${port}/${name}?sslmode=disable#section`,
+    );
+
+    expect(await service.parse()).toEqual({
+      ok: true,
+      connection: {host, port, name, user, password},
+    });
+  });
+
+  it('Should strip a fragment that precedes a query string from the database name', async () => {
+    const host = faker.internet.domainName();
+    const port = faker.number.int({min: 1024, max: 65535}).toString();
+    const name = faker.string.alphanumeric(10);
+    const user = faker.string.alphanumeric(10);
+    const password = faker.string.alphanumeric(10);
+
+    ssmConfigService.getOrThrow.mockResolvedValueOnce(
+      `postgres://${user}:${password}@${host}:${port}/${name}#section?sslmode=disable`,
+    );
+
+    expect(await service.parse()).toEqual({
+      ok: true,
+      connection: {host, port, name, user, password},
+    });
+  });
+
+  it('Should leave a database name with neither query nor fragment unchanged', async () => {
+    const host = faker.internet.domainName();
+    const port = faker.number.int({min: 1024, max: 65535}).toString();
+    const name = `${faker.string.alpha(6)}-${faker.string.alpha(6)}`;
+    const user = faker.string.alphanumeric(10);
+    const password = faker.string.alphanumeric(10);
+
+    ssmConfigService.getOrThrow.mockResolvedValueOnce(
+      `postgres://${user}:${password}@${host}:${port}/${name}`,
+    );
+
+    expect(await service.parse()).toEqual({
+      ok: true,
+      connection: {host, port, name, user, password},
+    });
+  });
+
   it('Should parse a postgresql connection URL into the database connection parts', async () => {
     const host = faker.internet.domainName();
     const port = faker.number.int({min: 1024, max: 65535}).toString();

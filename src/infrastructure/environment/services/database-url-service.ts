@@ -34,6 +34,13 @@ export class DatabaseUrlService {
     return [head, tail];
   }
 
+  private stripNameSuffix(name: string): string {
+    const [withoutFragment] = this.splitFirst(name, '#');
+    const [withoutQuery] = this.splitFirst(withoutFragment, '?');
+
+    return withoutQuery;
+  }
+
   async parse() {
     try {
       const databaseUrl = await this.ssmConfigService.getOrThrow('DB_URL');
@@ -41,9 +48,11 @@ export class DatabaseUrlService {
       const [, rest = ''] = this.splitFirst(databaseUrl, '://');
 
       const [userinfo, remainder] = this.splitLast(rest, '@');
-      const [hostport, name = ''] = this.splitFirst(remainder, '/');
+      const [hostport, rawName = ''] = this.splitFirst(remainder, '/');
       const [user, password = ''] = this.splitFirst(userinfo, ':');
       const [host, port = ''] = this.splitFirst(hostport, ':');
+
+      const name = this.stripNameSuffix(rawName);
 
       const connection = {host, port, name, user, password};
 
