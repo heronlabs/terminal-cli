@@ -72,18 +72,29 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Report npm publish
+        if: always()
+        env:
+          TAG: ${{ needs.setup-tags.outputs.tag }}
+        run: |
+          name=$(node -p "require('./package.json').name")
+          {
+            echo "## 📦 npm publish"
+            echo ''
+            echo '| Field | Value |'
+            echo '| --- | --- |'
+            echo "| Package | \`${name}\` |"
+            echo "| Version | \`${TAG}\` |"
+            echo "| Registry | https://registry.npmjs.org |"
+            echo "| Provenance | enabled |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   publish-docker:
-    name: 'Publish image (${{ matrix.image }})'
+    name: 'Publish image'
     needs: setup-tags
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: terminal-cli
-            dockerfile: Dockerfile
     steps:
       - uses: actions/checkout@v6
         with:
@@ -99,14 +110,14 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: heronlabs/${{ matrix.image }}
+          images: heronlabs/terminal-cli
           tags: |
             type=raw,value=${{ needs.setup-tags.outputs.tag }}
 
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
+          file: Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
