@@ -1,0 +1,24 @@
+{
+  "audits": {
+    "security": true
+  },
+  "clickup": {
+    "listId": "901415284967"
+  },
+  "pr": {
+    "base": "main",
+    "remote": "origin"
+  },
+  "stack": "pnpm",
+  "tags": {},
+  "verify": {
+    "build": "pnpm build",
+    "install": "pnpm install --frozen-lockfile",
+    "lint": "pnpm lint:check",
+    "test": "pnpm test:unit"
+  },
+  "worktree": {
+    "base": "main",
+    "dir": ".worktrees"
+  }
+}

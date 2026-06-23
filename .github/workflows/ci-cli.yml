@@ -1,4 +1,4 @@
-name: '[ CI ] | Terminal CLI'
+name: 'CI | Terminal CLI'
 
 on:
   workflow_dispatch: {}
