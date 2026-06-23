@@ -73,7 +73,7 @@ subprocesses via env vars.
 
 ## CI/CD
 
-### CI (`.github/workflows/ci-cli.yml`)
+### CI (`.github/workflows/continuous-integration.yml`)
 
 Triggers on PR to `main` (plus `workflow_dispatch`). A sequential gate chain
 that fans out at the end — each job `needs` the previous, so the first failure
@@ -88,7 +88,7 @@ halts the rest:
 5. **mutation** — `pnpm test:mutation` + score step-summary + report artifact
 6. **integration-test-{postgres,mysql}** — `docker compose run --build --rm <svc>-integration` round-trip, with a `==>`/`ok:`/`FAIL:` step-summary (these two run in parallel with **mutation**, all gated on **unit**)
 
-### CD — Releases (`.github/workflows/cd-tags.yml`)
+### CD — Releases (`.github/workflows/continuous-deployment.yml`)
 
 Runs automatically on every push to `main` (defaulting the bump to `patch`), plus manual `workflow_dispatch` to pick major/minor/patch. Bumps a semver tag via `heronlabs/action-tag-release-build@v3`.
 
