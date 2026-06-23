@@ -5,7 +5,9 @@
 #     `workflow` scope, so the auditor can push GitHub Actions SHA-pins. The
 #     default `GITHUB_TOKEN` lacks `workflow` scope and cannot push changes to
 #     `.github/workflows/*` — with only it, the audit still runs and pins
-#     dependencies, but action-pins cannot be pushed.
+#     dependencies, but action-pins cannot be pushed. `secrets.PAT`
+#     (terminal-cli's existing repo+workflow token) is used as the fallback
+#     if `SUPERA_AUDIT_TOKEN` is unset.
 name: 'Skill | audit'
 
 on:
@@ -32,7 +34,7 @@ jobs:
       - uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1.0.154
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.SUPERA_AUDIT_TOKEN || secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.SUPERA_AUDIT_TOKEN || secrets.PAT || secrets.GITHUB_TOKEN }}
           plugin_marketplaces: https://github.com/heronlabs/supera.git
           plugins: supera@supera-marketplace
           prompt: /supera:audit --non-interactive
