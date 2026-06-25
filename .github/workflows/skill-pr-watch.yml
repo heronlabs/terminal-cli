@@ -1,0 +1,87 @@
+# Prerequisites:
+#   - `ANTHROPIC_API_KEY` repo secret (or swap it for
+#     `claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}`).
+#   - `SUPERA_AUDIT_TOKEN`: a PAT/App token with `contents` + `pull-requests`
+#     scope so supera can push the fix and reply on the PR; add `workflow` scope
+#     only if a fix may touch `.github/workflows/*`. The default `GITHUB_TOKEN`
+#     works for non-workflow fixes. `secrets.PAT` (terminal-cli's existing
+#     repo+workflow token) is used as the fallback if `SUPERA_AUDIT_TOKEN` is
+#     unset.
+#
+# Security note: this runs the bumped dependency's tests with repo secrets in
+# scope — an accepted risk for auto-fixing a Dependabot bump. Keep the
+# `SUPERA_AUDIT_TOKEN` minimally scoped. It fires only on a FAILED CI run of a
+# Dependabot pull_request.
+name: 'Skill | pr-watch'
+
+on:
+  workflow_run:
+    workflows: ['Continuous Integration'] # must match the CI workflow name: in continuous-integration.yml
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  pr-watch:
+    name: 'Auto-fix Dependabot bump'
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.SUPERA_AUDIT_TOKEN || secrets.PAT || secrets.GITHUB_TOKEN }}
+
+      # supera-engineer commits the fix via raw git, so give it an identity
+      # (claude-code-action only auto-configures git in its tag mode, not prompt mode).
+      - run: |
+          git config --global user.name 'supera-bot'
+          git config --global user.email 'supera-bot@users.noreply.github.com'
+
+      # supera-engineer runs the repo's verify commands here, so set up the toolchain.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - id: pr
+        env:
+          GH_TOKEN: ${{ secrets.SUPERA_AUDIT_TOKEN || secrets.PAT || secrets.GITHUB_TOKEN }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          NUMBER=$(gh pr list --head "$HEAD_BRANCH" --state open --json number -q '.[0].number')
+          if [ -z "$NUMBER" ]; then
+            echo "No open PR for $HEAD_BRANCH — nothing to watch."
+            echo "number=" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.pr.outputs.number != ''
+        uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1.0.154
+        with:
+          allowed_bots: '*' # job-level `if:` already gates to dependabot[bot]; '*' avoids the brittle 'dependabot' vs 'dependabot[bot]' login mismatch
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.SUPERA_AUDIT_TOKEN || secrets.PAT || secrets.GITHUB_TOKEN }}
+          plugin_marketplaces: https://github.com/heronlabs/supera.git
+          plugins: supera@supera-marketplace
+          prompt: |
+            A Dependabot pull request (#${{ steps.pr.outputs.number }}) has a failing CI run.
+            Drive it green using the supera pr-watch skill — run the command below. This is a headless run with no human present, so never stop to ask; surface any block as a PR comment.
+            /supera:pr-watch ${{ steps.pr.outputs.number }} --non-interactive
+          show_full_output: true
+          claude_args: '--allowed-tools Bash,Read,Glob,Grep,Agent,Edit,Write'

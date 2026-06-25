@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@heronlabs/terminal-cli.svg)](https://www.npmjs.com/package/@heronlabs/terminal-cli)
 [![license](https://img.shields.io/npm/l/@heronlabs/terminal-cli.svg)](./LICENSE)
-[![CI](https://github.com/heronlabs/terminal-cli/actions/workflows/ci-cli.yml/badge.svg)](https://github.com/heronlabs/terminal-cli/actions/workflows/ci-cli.yml)
+[![CI](https://github.com/heronlabs/terminal-cli/actions/workflows/continuous-integration.yml/badge.svg)](https://github.com/heronlabs/terminal-cli/actions/workflows/continuous-integration.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.x-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.x-e0234e.svg)](https://nestjs.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)

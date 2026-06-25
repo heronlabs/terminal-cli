@@ -1,4 +1,4 @@
-name: '[ CI ] | Terminal CLI'
+name: 'Continuous Integration'
 
 on:
   workflow_dispatch: {}
