@@ -51,7 +51,7 @@ jobs:
       # supera-engineer runs the repo's verify commands here, so set up the toolchain.
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version-file: '.node-version'
           cache: 'pnpm'
@@ -72,7 +72,7 @@ jobs:
           fi
 
       - if: steps.pr.outputs.number != ''
-        uses: anthropics/claude-code-action@428971d2ecd6e3a7cb0ee0da2a3a8b33fdb3678d # v1.0.157
+        uses: anthropics/claude-code-action@700e7f8316990de46bed556429765647af760efc # v1.0.176
         with:
           allowed_bots: '*' # job-level `if:` already gates to dependabot[bot]; '*' avoids the brittle 'dependabot' vs 'dependabot[bot]' login mismatch
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
