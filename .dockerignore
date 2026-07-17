@@ -11,4 +11,4 @@
 !tsconfig.bin.json
 !src
 
-!tests/integration
+!integration

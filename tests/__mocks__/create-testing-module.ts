@@ -1,8 +1,8 @@
 import {S3Client} from '@aws-sdk/client-s3';
 import {faker} from '@faker-js/faker';
-import {ConfigService as SsmConfigService} from '@heronlabs/env-ssm';
+import {ConfigService} from '@heronlabs/env-ssm';
 import {Logger, ModuleMetadata} from '@nestjs/common';
-import {ConfigService} from '@nestjs/config';
+import {ConfigService as NestConfigService} from '@nestjs/config';
 import {Test, TestingModuleBuilder} from '@nestjs/testing';
 import {Mock} from 'moq.ts';
 import {Mock as ViMock, vi} from 'vitest';
@@ -80,9 +80,9 @@ export const createTestingModule = (
         .returns(loggerService.error)
         .object(),
     )
-    .overrideProvider(ConfigService)
+    .overrideProvider(NestConfigService)
     .useValue(configService)
-    .overrideProvider(SsmConfigService)
+    .overrideProvider(ConfigService)
     .useValue(ssmConfigService)
     .overrideProvider(ScriptLoaderService)
     .useValue(scriptLoaderService);

@@ -12,7 +12,6 @@ node_modules
 
 # Testing (Vitest)
 coverage
-tests/.coverage
 *.lcov
 .nyc_output
 
@@ -35,6 +34,7 @@ pids
 
 # Misc (OS, keys, npm pack)
 .DS_Store
+Thumbs.db
 *.pem
 *.tgz
 
@@ -48,6 +48,8 @@ tsconfig.bin.tsbuildinfo
 # IDE / Editor
 # https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 .idea
+.vscode/
+*.swp
 .eslintcache
 .stylelintcache
 
@@ -65,13 +67,23 @@ tsconfig.bin.tsbuildinfo
 .node_repl_history
 .npm
 
-# Legacy / coverage tooling
+# Stryker Mutation
+.stryker-tmp
+reports
+
+# Legacy
 lib-cov
 
 # Claude
 .superpowers
+.supera/
+.serena/
 .worktrees/
 
-# Stryker Mutation
-.stryker-tmp
-reports
+# Shell (legacy — kept for test fixtures)
+*.log
+
+
+# Release notes tmp file
+.release-notes.tmp.md
+
