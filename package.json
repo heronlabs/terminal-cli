@@ -41,7 +41,7 @@
     "moq.ts": "^10.0.8",
     "nest-commander-testing": "^3.5.1",
     "shellcheck": "^4.1.0",
-    "typescript": "~5.8.3",
+    "typescript": "~6.0.3",
     "typescript-eslint": "^8.60.0",
     "vitest": "^4.1.9"
   },
