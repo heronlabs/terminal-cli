@@ -1,9 +1,9 @@
-import {ConfigService} from '@heronlabs/env-ssm';
+import {ConfigService as SsmConfigService} from '@heronlabs/env-ssm';
 import {Injectable} from '@nestjs/common';
 
 @Injectable()
 export class DatabaseUrlService {
-  constructor(private readonly ssmConfigService: ConfigService) {}
+  constructor(private readonly ssmConfigService: SsmConfigService) {}
 
   private splitFirst(
     value: string,

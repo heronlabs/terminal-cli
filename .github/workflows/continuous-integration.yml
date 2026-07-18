@@ -15,74 +15,94 @@ concurrency:
 jobs:
   install:
     name: 'Install & Build'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v6
         with:
           node-version-file: '.node-version'
           cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - id: cache-modules
+        uses: actions/cache@v6
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - run: pnpm build
+      - id: cache-build
+        uses: actions/cache@v6
+        with:
+          path: bin
+          key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'src/**/*.ts', 'tsconfig*.json', 'nest-cli.json') }}
+
+      - if: steps.cache-modules.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - if: steps.cache-build.outputs.cache-hit != 'true'
+        run: pnpm build
 
   audit:
     needs: install
     name: 'Audit & Supply Chain'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v6
         with:
           node-version-file: '.node-version'
-          cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache/restore@v6
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - run: pnpm dep:cruise
 
       - run: pnpm audit --prod --audit-level=high
 
   lint:
-    needs: install
+    needs: audit
     name: 'Lint'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v6
         with:
           node-version-file: '.node-version'
-          cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache/restore@v6
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - run: pnpm lint:check
 
   unit:
-    needs: install
+    needs: lint
     name: 'Unit Tests'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v6
         with:
           node-version-file: '.node-version'
-          cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache/restore@v6
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - run: pnpm test:unit
 
@@ -91,78 +111,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: unit-test-coverage
-          path: reports/vitest/unit/
+          path: coverage/
           retention-days: 14
           if-no-files-found: warn
-
-  integration-test-postgres:
-    needs: unit
-    name: 'Integration Test (PostgreSQL)'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.node-version'
-
-      - name: PostgreSQL round-trip (prod image)
-        run: |
-          set -o pipefail
-          pnpm test:integration:postgres 2>&1 | tee /tmp/psql-it.log
-
-      - name: Summary
-        if: always()
-        run: |
-          {
-            echo "### PostgreSQL backup→rollup round-trip"
-            echo '```'
-            grep -E '^(==>|ok:|FAIL:)' /tmp/psql-it.log || true
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Tear down
-        if: always()
-        run: docker compose down -v
-
-  integration-test-mysql:
-    needs: unit
-    name: 'Integration Test (MySQL)'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.node-version'
-
-      - name: MySQL round-trip (prod image)
-        run: |
-          set -o pipefail
-          pnpm test:integration:mysql 2>&1 | tee /tmp/mysql-it.log
-
-      - name: Summary
-        if: always()
-        run: |
-          {
-            echo "### MySQL backup→rollup round-trip"
-            echo '```'
-            grep -E '^(==>|ok:|FAIL:)' /tmp/mysql-it.log || true
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Tear down
-        if: always()
-        run: docker compose down -v
 
   mutation:
     needs: unit
     name: 'Mutation Tests'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
@@ -170,12 +126,14 @@ jobs:
 
       - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v6
         with:
           node-version-file: '.node-version'
-          cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache/restore@v6
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Mutation tests
         run: |
@@ -205,3 +163,55 @@ jobs:
           path: reports/mutation/
           retention-days: 14
           if-no-files-found: warn
+
+  integration-test-postgres:
+    needs: unit
+    name: 'Integration Test (PostgreSQL)'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: PostgreSQL round-trip (prod image)
+        run: |
+          set -o pipefail
+          docker compose run --build --rm psql-integration 2>&1 | tee /tmp/psql-it.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### PostgreSQL backup→rollup round-trip"
+            echo '```'
+            grep -E '^(==>|ok:|FAIL:)' /tmp/psql-it.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  integration-test-mysql:
+    needs: unit
+    name: 'Integration Test (MySQL)'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: MySQL round-trip (prod image)
+        run: |
+          set -o pipefail
+          docker compose run --build --rm mysql-integration 2>&1 | tee /tmp/mysql-it.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### MySQL backup→rollup round-trip"
+            echo '```'
+            grep -E '^(==>|ok:|FAIL:)' /tmp/mysql-it.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

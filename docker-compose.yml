@@ -38,7 +38,7 @@ services:
   psql-integration:
     build:
       context: .
-      dockerfile: integration/postgres/Dockerfile
+      dockerfile: integration-postgres.dockerfile
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,7 +50,7 @@ services:
   mysql-integration:
     build:
       context: .
-      dockerfile: integration/mysql/Dockerfile
+      dockerfile: integration-mysql.dockerfile
     depends_on:
       mysql:
         condition: service_healthy

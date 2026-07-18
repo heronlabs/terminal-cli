@@ -2,10 +2,11 @@ name: 'Continuous Deployment'
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
     inputs:
-      semantic:
+      spec:
         description: The SEMVER specification.
         required: true
         type: choice
@@ -15,45 +16,48 @@ on:
           - 'minor'
           - 'patch'
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: ubuntu-24.04
-    outputs:
-      tag: ${{ steps.version.outputs.tag }}
+  setup-tags:
+    name: 'Create release tag'
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ secrets.PAT }}
 
-      - uses: heronlabs/action-tag-release-build@v6
+      - uses: heronlabs/action-tag-release-build@v4
         id: version
         with:
-          gh_token: ${{ github.token }}
-          semantic: ${{ inputs.semantic }}
-          bump_npm: true
+          github-token: ${{ secrets.PAT }}
+          spec: ${{ inputs.spec || 'patch' }}
 
   publish-npm:
     name: 'Publish package to npm'
-    needs: release
-    runs-on: ubuntu-24.04
+    needs: setup-tags
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release.outputs.tag }}
+          ref: ${{ needs.setup-tags.outputs.tag }}
 
       - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v6
         with:
           node-version-file: '.node-version'
           registry-url: 'https://registry.npmjs.org'
@@ -71,7 +75,7 @@ jobs:
       - name: Report npm publish
         if: always()
         env:
-          TAG: ${{ needs.release.outputs.tag }}
+          TAG: ${{ needs.setup-tags.outputs.tag }}
         run: |
           name=$(node -p "require('./package.json').name")
           {
@@ -87,14 +91,14 @@ jobs:
 
   publish-docker:
     name: 'Publish image to docker'
-    needs: release
-    runs-on: ubuntu-24.04
+    needs: setup-tags
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release.outputs.tag }}
+          ref: ${{ needs.setup-tags.outputs.tag }}
 
       - uses: docker/setup-buildx-action@v4
 
@@ -108,7 +112,7 @@ jobs:
         with:
           images: heronlabs/terminal-cli
           tags: |
-            type=raw,value=${{ needs.release.outputs.tag }}
+            type=raw,value=${{ needs.setup-tags.outputs.tag }}
 
       - uses: docker/build-push-action@v7
         with:
@@ -117,6 +121,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           provenance: true
           sbom: true
           cache-from: type=gha

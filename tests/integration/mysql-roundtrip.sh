@@ -3,8 +3,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# shellcheck source=integration/_lib.sh
-. "$SCRIPT_DIR/../_lib.sh"
+# shellcheck source=tests/integration/_lib.sh
+. "$SCRIPT_DIR/_lib.sh"
 
 HCLI="node $REPO_ROOT/bin/src/main.js"
 SEED_GZ="/tmp/mysql-seed.sql.gz"
@@ -32,7 +32,7 @@ mariadb_scalar() {
 }
 
 log "Preparing a gzipped seed for rollup"
-gzip -c "$SCRIPT_DIR/seed.sql" >"$SEED_GZ"
+gzip -c "$SCRIPT_DIR/fixtures/mysql-seed.sql" >"$SEED_GZ"
 
 log "Rolling up the seed via hcli mysql-rollup --local"
 $HCLI mysql-rollup --local -f "$SEED_GZ"

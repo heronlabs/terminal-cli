@@ -6,8 +6,16 @@
   "dashboard": {
     "project": "@heronlabs/terminal-cli"
   },
-  "ignorePatterns": ["bin", "node_modules", "reports"],
-  "ignoreStatic": true,
+  "htmlReporter": {
+    "fileName": "reports/mutation/mutation.html"
+  },
+  "ignorePatterns": [
+    "bin",
+    "coverage",
+    "node_modules",
+    "reports",
+    "tests/.coverage"
+  ],
   "incremental": true,
   "incrementalFile": "reports/mutation/incremental.json",
   "mutate": [
@@ -18,7 +26,7 @@
   ],
   "packageManager": "pnpm",
   "plugins": ["@stryker-mutator/vitest-runner"],
-  "reporters": ["clear-text", "progress"],
+  "reporters": ["html", "json", "clear-text", "progress"],
   "testRunner": "vitest",
   "thresholds": {
     "break": 100,

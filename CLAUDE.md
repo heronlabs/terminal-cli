@@ -11,13 +11,10 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 | Command | What it does |
 |---|---|
 | `pnpm build` | `nest build --path tsconfig.bin.json` → `bin/` |
-| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML + shellcheck on `src/**/*.sh` and `integration/**/*.sh` |
+| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML + shellcheck on `src/**/*.sh` |
 | `pnpm lint:fix` | `gts fix` + eslint `--fix` on JSON/YAML + shellcheck (check-only) |
-| `pnpm lint:shell` | shellcheck on `src/**/*.sh` and `integration/**/*.sh` (config: `.shellcheckrc`; scripts are shebang-less by design) |
+| `pnpm lint:shell` | shellcheck on `src/**/*.sh` (config: `.shellcheckrc`; scripts are shebang-less by design) |
 | `pnpm test:unit` | `VITE_CJS_IGNORE_WARNING=true vitest run` |
-| `pnpm test:integration` | Run both PostgreSQL and MySQL round-trip integration tests |
-| `pnpm test:integration:postgres` | `docker compose run --build --rm psql-integration` |
-| `pnpm test:integration:mysql` | `docker compose run --build --rm mysql-integration` |
 | `pnpm test:mutation` | `stryker run stryker.conf.json` |
 | `pnpm dep:cruise` | dependency-cruiser architecture check |
 | `pnpm start -- <cmd>` | run a CLI command locally (loads `.env` via dotenv) |
@@ -48,13 +45,8 @@ a `.tar.gz` rather than a database; they run natively on the host **as root**
 
 - No circular dependencies under `src/`.
 - `core/` must not import `application/`.
-- `application/` must not import `infrastructure/` (except `cli-module.ts` — the composition root).
 - `infrastructure/` must not import `application/` or `core/`.
 - `core/` MAY import `infrastructure/` — the backup/rollup base services depend on the S3 adapter by design.
-- Production code in `src/` must not import `devDependencies` (type-only imports allowed).
-- Every import from `src/` must resolve to a `package.json` dependency (no phantom deps).
-- Every module in `src/` must be reachable from `main.ts` (dead-code guard).
-- No orphan modules (files not imported by anything, except `.d.ts` and `main.ts`).
 
 ## Configuration
 
@@ -73,7 +65,7 @@ subprocesses via env vars.
 | Detail | Value |
 |---|---|
 | Framework | Vitest 4.x (`vitest.config.ts`; default transform handles NestJS decorators) |
-| Test location | `tests/unit/` (mirrors `src/`) |
+| Test location | `tests/specs/` (mirrors `src/`) |
 | Shared mocks | `tests/__mocks__/create-testing-module.ts` (moq.ts + vitest) |
 | Libraries | `@faker-js/faker`, `moq.ts`, `nest-commander-testing` |
 | Coverage | v8, 100% thresholds; excludes `main.ts`, `*.d.ts`, `*factory.ts`, `types/` |
@@ -94,19 +86,17 @@ halts the rest:
 3. **lint** — `pnpm lint:check`
 4. **unit** — `pnpm test:unit` + coverage artifact
 5. **mutation** — `pnpm test:mutation` + score step-summary + report artifact
-6. **integration-test-{postgres,mysql}** — `pnpm test:integration:postgres` / `pnpm test:integration:mysql` round-trip, with a `==>`/`ok:`/`FAIL:` step-summary (these two run in parallel with **mutation**, all gated on **unit**)
+6. **integration-test-{postgres,mysql}** — `docker compose run --build --rm <svc>-integration` round-trip, with a `==>`/`ok:`/`FAIL:` step-summary (these two run in parallel with **mutation**, all gated on **unit**)
 
 ### CD — Releases (`.github/workflows/continuous-deployment.yml`)
 
-Runs automatically on every push to `main` (defaulting the bump to `patch`), plus manual `workflow_dispatch` to pick major/minor/patch. Bumps a semver tag via `heronlabs/action-tag-release-build@v6`.
+Runs automatically on every push to `main` (defaulting the bump to `patch`), plus manual `workflow_dispatch` to pick major/minor/patch. Bumps a semver tag via `heronlabs/action-tag-release-build@v3`.
 
 | Input | Values |
 |---|---|
-| `semantic` | major, minor, patch |
+| `spec` | major, minor, patch |
 
-The `publish-npm` job runs `npm publish --access public --provenance` and the
-`publish-docker` job builds and pushes `heronlabs/terminal-cli` to Docker Hub.
-Both run in parallel after the release tag is created, carrying
+The `publish-npm` job runs `npm publish --access public --provenance` and carries
 `id-token: write` (plus `contents: read`) permission — enabled now that the repo
 is public, since npm only signs sigstore provenance for public source repos.
 
@@ -121,7 +111,7 @@ backups are deployed via `easypanel/` inline-Dockerfile templates
 and run `crond` — see `easypanel/README.md`. `docker-compose.yml` provides the
 local psql/mysql DBs (ports 5434/3307) plus the `psql-integration`/
 `mysql-integration` runner services that execute the backup/rollup round-trip
-integration tests inside the prod-shaped `integration/{postgres,mysql}/Dockerfile`
+integration tests inside the prod-shaped `integration-{postgres,mysql}.dockerfile`
 images (`docker compose run --build --rm <svc>-integration`).
 
 ## TypeScript

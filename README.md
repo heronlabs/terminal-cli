@@ -61,7 +61,7 @@ You also need the database client tools for the engine you back up: `pg_dump` /
 | Requirement | Version | Purpose |
 |-------------|---------|---------|
 | Node.js | `>=22` | Runtime |
-| pnpm | `>=10.33.2` | Package manager |
+| pnpm | `>=10.29.3` | Package manager |
 | `pg_dump` / `psql` | — | PostgreSQL backup/restore |
 | `mysqldump` / `mysql` | — | MySQL backup/restore |
 
@@ -83,7 +83,6 @@ After `pnpm build`, run the CLI via `node bin/src/main.js <command>` or link the
 pnpm build         # nest build → bin/
 pnpm lint:check    # gts + eslint
 pnpm test:unit     # vitest run (100% coverage)
-pnpm test:integration  # PostgreSQL + MySQL round-trip (requires Docker)
 pnpm test:mutation # stryker (100% break)
 pnpm dep:cruise    # architecture check
 ```
@@ -184,13 +183,12 @@ injects). See [`easypanel/README.md`](easypanel/README.md) for deploy steps.
 Local stack for manual testing — `docker-compose.yml` runs the psql + mysql DBs
 (exposed on ports 5434/3307) and the `psql-integration`/`mysql-integration`
 services that run the backup/rollup round-trip inside the prod-shaped
-`integration/{postgres,mysql}/Dockerfile` images:
+`integration-{postgres,mysql}.dockerfile` images:
 
 ```bash
 docker compose up postgres mysql              # local DBs only
-pnpm test:integration:postgres                # PostgreSQL round-trip
-pnpm test:integration:mysql                   # MySQL round-trip
-pnpm test:integration                         # both
+docker compose run --build --rm psql-integration   # PostgreSQL round-trip
+docker compose run --build --rm mysql-integration  # MySQL round-trip
 ```
 
 ## EasyPanel host backup
@@ -232,8 +230,7 @@ vars) in `/etc/easypanel-backup.env`.
 | Detail | Value |
 |---|---|
 | Framework | Vitest 4.x (`vitest.config.ts`, SWC transform for decorators) |
-| Test location | `tests/unit/` (mirrors `src/`) |
-| Integration tests | `integration/` — Docker-based round-trip (PostgreSQL + MySQL) |
+| Test location | `tests/specs/` (mirrors `src/`) |
 | Shared mocks | `tests/__mocks__/create-testing-module.ts` (moq.ts + vitest) |
 | Coverage | v8, 100% lines/functions/branches/statements |
 | Coverage excludes | `**/main.ts`, `**/*.d.ts`, `**/*factory.ts`, `**/types/` |
@@ -242,19 +239,17 @@ vars) in `/etc/easypanel-backup.env`.
 
 ```bash
 pnpm test:unit      # vitest run with coverage
-pnpm test:integration  # PostgreSQL + MySQL round-trip (requires Docker)
 pnpm test:mutation  # stryker mutation testing
 ```
 
 ## Contributing
 
 ```bash
-pnpm lint:check       # check
-pnpm lint:fix         # auto-fix
-pnpm build            # verify compilation
-pnpm test:unit        # verify tests pass at 100% coverage
-pnpm test:integration # verify round-trip (requires Docker)
-pnpm dep:cruise       # verify architecture
+pnpm lint:check   # check
+pnpm lint:fix     # auto-fix
+pnpm build        # verify compilation
+pnpm test:unit    # verify tests pass at 100% coverage
+pnpm dep:cruise   # verify architecture
 ```
 
 Conventional Commits:

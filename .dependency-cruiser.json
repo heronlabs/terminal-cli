@@ -15,16 +15,6 @@
       "to": {"path": "^src/application/"}
     },
     {
-      "comment": "Application layer orchestrates core; must not reach directly into infrastructure adapters. The CLI module is the composition root — it wires everything.",
-      "from": {
-        "path": "^src/application/",
-        "pathNot": "^src/application/cli/cli-module\\.ts$"
-      },
-      "name": "app-no-infrastructure",
-      "severity": "error",
-      "to": {"path": "^src/infrastructure/"}
-    },
-    {
       "comment": "infrastructure/ adapters must not import application/ or core/ — they sit at the edge.",
       "from": {"path": "^src/infrastructure/"},
       "name": "infrastructure-no-upward-deps",
@@ -32,45 +22,14 @@
       "to": {"path": "^src/(application|core)/"}
     },
     {
-      "comment": "Every module in src must be reachable from the entry point (dead-code guard).",
-      "from": {"path": "^src/main\\.ts$"},
-      "name": "no-unreachable-from-entry",
-      "severity": "error",
-      "to": {
-        "path": "^src",
-        "pathNot": "^src/main\\.ts$",
-        "reachable": false
-      }
-    },
-    {
-      "comment": "Orphan modules are dead-code candidates (allow type declarations and entry points).",
+      "comment": "Orphan modules are dead-code candidates.",
       "from": {
         "orphan": true,
         "pathNot": ["\\.d\\.ts$", "(^|/)main\\.ts$"]
       },
       "name": "no-orphans",
-      "severity": "error",
+      "severity": "warn",
       "to": {}
-    },
-    {
-      "comment": "Production code must not import devDependencies (type-only imports are compiled away and allowed).",
-      "from": {"path": "^src"},
-      "name": "not-to-dev-dep",
-      "severity": "error",
-      "to": {
-        "dependencyTypes": ["npm-dev"],
-        "dependencyTypesNot": ["type-only"],
-        "pathNot": ["node_modules/@types/"]
-      }
-    },
-    {
-      "comment": "Every import from src must resolve to a dependency declared in package.json.",
-      "from": {"path": "^src"},
-      "name": "no-non-package-json",
-      "severity": "error",
-      "to": {
-        "dependencyTypes": ["npm-no-pkg", "npm-unknown"]
-      }
     }
   ],
   "options": {

@@ -28,7 +28,7 @@ RUN apk upgrade --no-cache \
 COPY --from=builder /app/bin ./bin
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
-COPY integration ./integration
+COPY tests/integration ./tests/integration
 
 RUN printf '#!/bin/sh\nexec node /app/bin/src/main.js "$@"\n' > /usr/local/bin/hcli \
   && chmod +x /usr/local/bin/hcli \
@@ -36,4 +36,4 @@ RUN printf '#!/bin/sh\nexec node /app/bin/src/main.js "$@"\n' > /usr/local/bin/h
 
 USER node
 
-CMD ["bash", "integration/mysql/roundtrip.sh"]
+CMD ["bash", "tests/integration/mysql-roundtrip.sh"]

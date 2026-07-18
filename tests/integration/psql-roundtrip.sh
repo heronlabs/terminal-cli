@@ -3,8 +3,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# shellcheck source=integration/_lib.sh
-. "$SCRIPT_DIR/../_lib.sh"
+# shellcheck source=tests/integration/_lib.sh
+. "$SCRIPT_DIR/_lib.sh"
 
 HCLI="node $REPO_ROOT/bin/src/main.js"
 SEED_GZ="/tmp/psql-seed.sql.gz"
@@ -27,7 +27,7 @@ psql_scalar() {
 }
 
 log "Preparing a gzipped seed for rollup"
-gzip -c "$SCRIPT_DIR/seed.sql" >"$SEED_GZ"
+gzip -c "$SCRIPT_DIR/fixtures/psql-seed.sql" >"$SEED_GZ"
 
 log "Rolling up the seed via hcli psql-rollup --local"
 $HCLI psql-rollup --local -f "$SEED_GZ"
