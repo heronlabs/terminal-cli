@@ -3,11 +3,22 @@ updates:
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
-      interval: weekly
+      interval: daily
     groups:
       actions:
         patterns: ['*']
   - package-ecosystem: npm # reads pnpm-lock.yaml
     directory: '/'
     schedule:
-      interval: weekly
+      interval: daily
+    ignore:
+      - dependency-name: eslint
+        versions: ['*']
+      - dependency-name: typescript
+        versions: ['*']
+      - dependency-name: '@eslint/*'
+        versions: ['*']
+      - dependency-name: typescript-eslint
+        versions: ['*']
+      - dependency-name: gts
+        versions: ['*']
