@@ -1,7 +1,4 @@
-import {
-  ConfigService as SsmConfigService,
-  SsmConfigFactory,
-} from '@heronlabs/env-ssm';
+import {AwsFactory, ConfigService} from '@heronlabs/env-ssm';
 import {Module, ModuleMetadata} from '@nestjs/common';
 import {ConfigModule} from '@nestjs/config';
 
@@ -13,8 +10,8 @@ export const environmentModule: ModuleMetadata = {
     EnvironmentService,
     DatabaseUrlService,
     {
-      provide: SsmConfigService,
-      useValue: SsmConfigFactory.make(),
+      provide: ConfigService,
+      useValue: AwsFactory.make().getConfigService(),
     },
   ],
   exports: [EnvironmentService],
