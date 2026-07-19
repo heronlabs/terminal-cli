@@ -28,7 +28,7 @@
     "@stryker-mutator/typescript-checker": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/luxon": "^3.7.1",
-    "@types/node": "^22.15.30",
+    "@types/node": "^26.1.1",
     "@vitest/coverage-v8": "^4.1.9",
     "dependency-cruiser": "^17.4.2",
     "dotenv-cli": "^11.0.0",
