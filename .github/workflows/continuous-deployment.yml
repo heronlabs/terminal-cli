@@ -32,7 +32,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: heronlabs/action-tag-release-build@v6
+      - uses: heronlabs/action-tag-release-build@v7
         id: version
         with:
           gh_token: ${{ github.token }}
