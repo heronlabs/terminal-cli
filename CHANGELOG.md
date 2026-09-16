@@ -1,3 +1,9 @@
+## v2.3.6 (2026-09-16)
+
+### Miscellaneous Chores
+
+* other: upgrade @heronlabs/env-ssm to 4.1.0 (#45) (b06b1c1bb3686703826ff8f07e3f0db2de68bc7a)
+
 ## v2.3.5 (2026-09-16)
 
 ### Bug Fixes
