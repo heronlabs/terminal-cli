@@ -54,10 +54,7 @@ tsconfig.bin.tsbuildinfo
 .stylelintcache
 
 # Claude Code / internal tooling (never commit to the public repo)
-# Exception: supera.json is non-secret shared config that the supera CI
-# workflows (audit / pr-watch) read from the checkout — deliberately tracked.
 .claude/*
-!.claude/supera.json
 
 # pnpm
 # https://pnpm.io/npmrc#store-dir
