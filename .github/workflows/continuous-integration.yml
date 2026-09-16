@@ -98,7 +98,7 @@ jobs:
   integration-test-postgres:
     needs: unit
     name: 'Integration Test (PostgreSQL)'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -130,7 +130,7 @@ jobs:
   integration-test-mysql:
     needs: unit
     name: 'Integration Test (MySQL)'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
