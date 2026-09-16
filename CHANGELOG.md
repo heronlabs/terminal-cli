@@ -1,3 +1,9 @@
+## v2.3.5 (2026-09-16)
+
+### Bug Fixes
+
+* fix: repair broken pnpm-lock.yaml duplicate keys (#44) (e0c77a2e19c620a2e574207265e582e43e1d0853)
+
 ## v2.3.4 (2026-07-19)
 
 
