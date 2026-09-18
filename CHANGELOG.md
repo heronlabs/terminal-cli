@@ -1,3 +1,9 @@
+## v2.4.0 (2026-09-18)
+
+### Features
+
+* feat: rename DB_URL env var to DATABASE_URL (#46) (0a242b58f143403e413f2443a75c36e57e00534a)
+
 ## v2.3.6 (2026-09-16)
 
 ### Miscellaneous Chores
