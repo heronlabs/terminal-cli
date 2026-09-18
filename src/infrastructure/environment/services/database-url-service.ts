@@ -43,7 +43,8 @@ export class DatabaseUrlService {
 
   async parse() {
     try {
-      const databaseUrl = await this.ssmConfigService.getOrThrow('DB_URL');
+      const databaseUrl =
+        await this.ssmConfigService.getOrThrow('DATABASE_URL');
 
       const [, rest = ''] = this.splitFirst(databaseUrl, '://');
 
@@ -63,7 +64,9 @@ export class DatabaseUrlService {
       if (missing.length > 0) {
         return {
           ok: false as const,
-          error: new Error(`Invalid DB_URL: missing ${missing.join(', ')}`),
+          error: new Error(
+            `Invalid DATABASE_URL: missing ${missing.join(', ')}`,
+          ),
         };
       }
 
@@ -71,7 +74,8 @@ export class DatabaseUrlService {
     } catch (error) {
       return {
         ok: false as const,
-        error: error instanceof Error ? error : new Error('Invalid DB_URL'),
+        error:
+          error instanceof Error ? error : new Error('Invalid DATABASE_URL'),
       };
     }
   }

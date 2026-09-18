@@ -43,7 +43,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DB_URL: 'postgres://postgres:S3cr#t/P@ss:w%rd@postgres:5432/mydb'
+      DATABASE_URL: 'postgres://postgres:S3cr#t/P@ss:w%rd@postgres:5432/mydb'
       AWS_REGION: us-east-1
       AWS_S3_BUCKET_NAME: dummy-bucket
 
@@ -55,7 +55,7 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      DB_URL: 'mysql://mysql:S3cr#t/P@ss:w%rd@mysql:3306/mydb'
+      DATABASE_URL: 'mysql://mysql:S3cr#t/P@ss:w%rd@mysql:3306/mydb'
       AWS_REGION: us-east-1
       AWS_S3_BUCKET_NAME: dummy-bucket
 

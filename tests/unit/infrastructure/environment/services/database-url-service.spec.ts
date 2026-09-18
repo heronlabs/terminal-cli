@@ -16,13 +16,13 @@ describe('Given a database URL service', () => {
     service = moduleRef.get(DatabaseUrlService);
   });
 
-  it('Should resolve DB_URL through env-ssm getOrThrow', async () => {
+  it('Should resolve DATABASE_URL through env-ssm getOrThrow', async () => {
     await service.parse();
 
-    expect(ssmConfigService.getOrThrow).toHaveBeenCalledWith('DB_URL');
+    expect(ssmConfigService.getOrThrow).toHaveBeenCalledWith('DATABASE_URL');
   });
 
-  it('Should return the original error when DB_URL cannot be resolved', async () => {
+  it('Should return the original error when DATABASE_URL cannot be resolved', async () => {
     const error = new Error(faker.lorem.sentence());
 
     ssmConfigService.getOrThrow.mockRejectedValueOnce(error);
@@ -35,7 +35,7 @@ describe('Given a database URL service', () => {
 
     expect(await service.parse()).toEqual({
       ok: false,
-      error: new Error('Invalid DB_URL'),
+      error: new Error('Invalid DATABASE_URL'),
     });
   });
 
@@ -292,16 +292,16 @@ describe('Given a database URL service', () => {
     });
   });
 
-  it('Should fail when the DB_URL is not a valid connection URL', async () => {
+  it('Should fail when the DATABASE_URL is not a valid connection URL', async () => {
     ssmConfigService.getOrThrow.mockResolvedValueOnce(faker.string.alpha(12));
 
     expect(await service.parse()).toEqual({
       ok: false,
-      error: new Error('Invalid DB_URL: missing host, name, user'),
+      error: new Error('Invalid DATABASE_URL: missing host, name, user'),
     });
   });
 
-  it('Should never expose the password in the invalid DB_URL error', async () => {
+  it('Should never expose the password in the invalid DATABASE_URL error', async () => {
     const password = faker.string.alphanumeric(16);
 
     ssmConfigService.getOrThrow.mockResolvedValueOnce(
@@ -322,7 +322,7 @@ describe('Given a database URL service', () => {
 
     expect(await service.parse()).toEqual({
       ok: false,
-      error: new Error('Invalid DB_URL: missing host, user'),
+      error: new Error('Invalid DATABASE_URL: missing host, user'),
     });
   });
 
@@ -338,7 +338,7 @@ describe('Given a database URL service', () => {
 
     expect(await service.parse()).toEqual({
       ok: false,
-      error: new Error('Invalid DB_URL: missing name'),
+      error: new Error('Invalid DATABASE_URL: missing name'),
     });
   });
 
@@ -354,7 +354,7 @@ describe('Given a database URL service', () => {
 
     expect(await service.parse()).toEqual({
       ok: false,
-      error: new Error('Invalid DB_URL: missing name'),
+      error: new Error('Invalid DATABASE_URL: missing name'),
     });
   });
 
@@ -369,7 +369,7 @@ describe('Given a database URL service', () => {
 
     expect(await service.parse()).toEqual({
       ok: false,
-      error: new Error('Invalid DB_URL: missing user'),
+      error: new Error('Invalid DATABASE_URL: missing user'),
     });
   });
 
@@ -378,7 +378,7 @@ describe('Given a database URL service', () => {
 
     expect(await service.parse()).toEqual({
       ok: false,
-      error: new Error('Invalid DB_URL: missing host, name, user'),
+      error: new Error('Invalid DATABASE_URL: missing host, name, user'),
     });
   });
 });

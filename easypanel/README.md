@@ -33,7 +33,7 @@ these per-deployment inline Dockerfiles.
 
 | Variable | Required | Description |
 |---|---|---|
-| `DB_URL` | yes | A `postgres://` / `mysql://` connection URL, or an AWS SSM Parameter Store ARN resolved by `@heronlabs/env-ssm`. |
+| `DATABASE_URL` | yes | A `postgres://` / `mysql://` connection URL, or an AWS SSM Parameter Store ARN resolved by `@heronlabs/env-ssm`. |
 | `AWS_S3_BUCKET_NAME` | yes | Destination bucket for the backup artifact. |
 | `AWS_REGION` | yes | Region of the bucket. |
 | `AWS_ACCESS_KEY_ID` | yes | Credentials for the S3 upload. |
