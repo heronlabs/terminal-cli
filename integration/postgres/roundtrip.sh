@@ -11,7 +11,7 @@ SEED_GZ="/tmp/psql-seed.sql.gz"
 DUMP_GZ="/tmp/psql-dump.sql.gz"
 SENTINEL="sentinel-row"
 
-proto_stripped="${DB_URL#*://}"
+proto_stripped="${DATABASE_URL#*://}"
 creds="${proto_stripped%@*}"
 hostpart="${proto_stripped##*@}"
 PGUSER="${creds%%:*}"
