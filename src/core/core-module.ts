@@ -2,8 +2,6 @@ import {Logger, Module, ModuleMetadata} from '@nestjs/common';
 
 import {EnvironmentModule} from '../infrastructure/environment/environment-module';
 import {StorageModule} from '../infrastructure/storage/storage-module';
-import {EasypanelBackupService} from './services/easy-panel/easypanel-backup-service';
-import {EasypanelRollupService} from './services/easy-panel/easypanel-rollup-service';
 import {MysqlBackupService} from './services/mysql/mysql-backup-service';
 import {MysqlRollupService} from './services/mysql/mysql-rollup-service';
 import {PsqlBackupService} from './services/psql/psql-backup-service';
@@ -15,8 +13,6 @@ const coreModule: ModuleMetadata = {
   providers: [
     Logger,
     ScriptLoaderService,
-    EasypanelBackupService,
-    EasypanelRollupService,
     MysqlBackupService,
     MysqlRollupService,
     PsqlBackupService,
@@ -24,8 +20,6 @@ const coreModule: ModuleMetadata = {
   ],
   exports: [
     ScriptLoaderService,
-    EasypanelBackupService,
-    EasypanelRollupService,
     MysqlBackupService,
     MysqlRollupService,
     PsqlBackupService,

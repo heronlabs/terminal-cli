@@ -24,13 +24,8 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 
 ## CLI Commands (`hcli`)
 
-`psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`,
-`easypanel-backup`, `easypanel-rollup`, `version`.
+`psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`, `version`.
 Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3).
-
-The `easypanel-*` commands snapshot an EasyPanel host (config + Docker state) to
-a `.tar.gz` rather than a database; they run natively on the host **as root**
-(stop Docker → tar → restart) and use only the `AWS_*` env vars.
 
 ## Source Layout
 
@@ -39,7 +34,7 @@ a `.tar.gz` rather than a database; they run natively on the host **as root**
 | `src/main.ts` | Bootstrap — `CommandFactory.runApplication(CliModule)` |
 | `src/application/cli/` | `cli-module.ts` + `commands/{backup,rollup,version}/` (nest-commander commands + option types) |
 | `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration) |
-| `src/core/services/` | One folder per engine — `{easy-panel,mysql,psql}/` with its backup + rollup services (`easy-panel/` also holds its `.sh` scripts); shared `script-loader-service.ts` at the root |
+| `src/core/services/` | One folder per engine — `{mysql,psql}/` with its backup + rollup services and `.sh` scripts; shared `script-loader-service.ts` at the root |
 | `src/infrastructure/environment/` | `EnvironmentService` — typed wrapper over `@nestjs/config` |
 | `src/infrastructure/log/` | `LogModule` — nestjs-pino global logger |
 | `src/infrastructure/storage/` | `S3StorageService` — AWS SDK v3 upload/download |
