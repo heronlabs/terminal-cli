@@ -1,10 +1,12 @@
 import {Upload} from '@aws-sdk/lib-storage';
 import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
+import {readFileSync, writeFileSync} from 'fs';
 
 import {cliModule} from '../../../src/application/cli/cli-module';
 import {PsqlBackupCommand} from '../../../src/application/cli/commands/backup/psql-backup-command';
 import {BackupOptionsKeys} from '../../../src/application/cli/commands/backup/types/backup-options';
+import {JobRunnerService} from '../../../src/core/services/job/job-runner-service';
 import {
   createTestingModule,
   loggerService,
@@ -22,16 +24,20 @@ vi.mock('@aws-sdk/lib-storage', () => ({
 }));
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
+  readFileSync: vi.fn(),
   createReadStream: vi.fn(),
   rmSync: vi.fn(),
   unlinkSync: vi.fn(),
+  writeFileSync: vi.fn(),
 }));
 describe('Given a CLI command', () => {
   let command: PsqlBackupCommand;
+  let jobRunner: JobRunnerService;
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
     command = moduleRef.get(PsqlBackupCommand);
+    jobRunner = moduleRef.get(JobRunnerService);
   });
 
   afterEach(() => {
@@ -157,6 +163,32 @@ describe('Given a CLI command', () => {
 
     it('Should return true when parsing local option', () => {
       expect(command.parseLocal()).toBeTruthy();
+    });
+
+    it('Should set exit code 1 when another job holds the lock', async () => {
+      vi.mocked(writeFileSync).mockImplementationOnce(() => {
+        throw Object.assign(new Error('EEXIST'), {code: 'EEXIST'});
+      });
+      vi.mocked(readFileSync).mockReturnValueOnce(
+        String(faker.number.int({min: 2, max: 99999})),
+      );
+      vi.spyOn(process, 'kill').mockReturnValueOnce(true);
+
+      await command.run();
+
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('Should run as a manual, locked backup job', async () => {
+      const run = vi.spyOn(jobRunner, 'run');
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await command.run();
+
+      expect(run).toHaveBeenCalledWith(
+        {command: 'psql-backup', job: 'backup', trigger: 'manual', lock: true},
+        expect.any(Function),
+      );
     });
   });
 });

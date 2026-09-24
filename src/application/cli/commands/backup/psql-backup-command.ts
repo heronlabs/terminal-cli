@@ -1,5 +1,6 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
+import {JobRunnerService} from '../../../../core/services/job/job-runner-service';
 import {PsqlBackupService} from '../../../../core/services/psql/psql-backup-service';
 import {BackupOptions, BackupOptionsKeys} from './types/backup-options';
 
@@ -27,17 +28,24 @@ export class PsqlBackupCommand extends CommandRunner {
   }
 
   public async run(_args?: string[], options?: BackupOptions) {
-    const result = await this.psqlBackupService.run(
-      options?.[BackupOptionsKeys.LOCAL] ?? false,
-      options?.[BackupOptionsKeys.FILENAME],
+    const outcome = await this.jobRunner.run(
+      {command: 'psql-backup', job: 'backup', trigger: 'manual', lock: true},
+      () =>
+        this.psqlBackupService.run(
+          options?.[BackupOptionsKeys.LOCAL] ?? false,
+          options?.[BackupOptionsKeys.FILENAME],
+        ),
     );
 
-    if (!result.ok) {
+    if (outcome !== 'ok') {
       process.exitCode = 1;
     }
   }
 
-  constructor(private readonly psqlBackupService: PsqlBackupService) {
+  constructor(
+    private readonly psqlBackupService: PsqlBackupService,
+    private readonly jobRunner: JobRunnerService,
+  ) {
     super();
   }
 }

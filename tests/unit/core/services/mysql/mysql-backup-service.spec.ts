@@ -223,7 +223,10 @@ describe('Given a service', () => {
 
       const result = await service.run(true);
 
-      expect(result).toEqual({ok: false});
+      expect(result).toEqual({
+        ok: false,
+        error: new Error('mariadb-dump failed'),
+      });
     });
 
     it('Should remove the partial backup file when dump fails', async () => {
@@ -249,13 +252,12 @@ describe('Given a service', () => {
     });
 
     it('Should return ok false when database resolution fails', async () => {
-      ssmConfigService.getOrThrow.mockRejectedValueOnce(
-        new Error(faker.lorem.word()),
-      );
+      const error = new Error(faker.lorem.word());
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(error);
 
       const result = await service.run(true);
 
-      expect(result).toEqual({ok: false});
+      expect(result).toEqual({ok: false, error});
     });
 
     it('Should not remove any file when database resolution fails', async () => {
@@ -279,14 +281,15 @@ describe('Given a service', () => {
     });
 
     it('Should return ok false when the upload fails', async () => {
+      const error = new Error(faker.lorem.words());
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
-      uploadDone.mockRejectedValueOnce(new Error(faker.lorem.words()));
+      uploadDone.mockRejectedValueOnce(error);
 
       const result = await service.run(false, filename);
 
-      expect(result).toEqual({ok: false});
+      expect(result).toEqual({ok: false, error});
     });
 
     it('Should log the upload error message exactly when the upload fails', async () => {

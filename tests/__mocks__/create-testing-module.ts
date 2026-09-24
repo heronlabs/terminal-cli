@@ -33,8 +33,10 @@ export const s3Service: {
 
 export const configService: {
   getOrThrow: ViMock;
+  get: ViMock;
 } = {
   getOrThrow: vi.fn(),
+  get: vi.fn(),
 };
 
 export const ssmConfigService: {

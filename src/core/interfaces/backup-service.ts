@@ -3,6 +3,7 @@ import {unlinkSync} from 'fs';
 import {DateTime} from 'luxon';
 
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
+import {JobResult} from '../types/job';
 
 export abstract class BackupService {
   protected abstract dump(
@@ -21,12 +22,12 @@ export abstract class BackupService {
     return filename ?? `${defaultBaseName}-${timestamp}.${extension}`;
   }
 
-  public async run(local: boolean, filename?: string) {
+  public async run(local: boolean, filename?: string): Promise<JobResult> {
     const result = await this.dump(filename);
 
     if (!result.ok) {
       this.logger.error(result.error.message);
-      return {ok: false};
+      return {ok: false, error: result.error};
     }
 
     if (local) {
@@ -42,7 +43,7 @@ export abstract class BackupService {
 
     if (uploadError) {
       this.logger.error(uploadError.message);
-      return {ok: false};
+      return {ok: false, error: uploadError};
     }
 
     return {ok: true};
