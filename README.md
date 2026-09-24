@@ -220,7 +220,7 @@ inline-Dockerfile templates under [`easypanel/`](easypanel/): each one is
 Local stack for manual testing — `docker-compose.yml` runs the psql + mysql DBs
 (exposed on ports 5434/3307) and the `psql-integration`/`mysql-integration`
 services that run the backup/rollup round-trip inside the prod-shaped
-`integration/{postgres,mysql}/Dockerfile` images:
+`tests-integration/{postgres,mysql}/Dockerfile` images:
 
 ```bash
 docker compose up postgres mysql              # local DBs only
@@ -235,7 +235,7 @@ pnpm test:integration                         # both
 |---|---|
 | Framework | Vitest 4.x (`vitest.config.ts`, SWC transform for decorators) |
 | Test location | `tests/unit/` (mirrors `src/`) |
-| Integration tests | `integration/` — Docker-based round-trip (PostgreSQL + MySQL) |
+| Integration tests | `tests-integration/` — Docker-based round-trip (PostgreSQL + MySQL) |
 | Shared mocks | `tests/__mocks__/create-testing-module.ts` (moq.ts + vitest) |
 | Coverage | v8, 100% lines/functions/branches/statements |
 | Coverage excludes | `**/main.ts`, `**/*.d.ts`, `**/*factory.ts`, `**/types/` |

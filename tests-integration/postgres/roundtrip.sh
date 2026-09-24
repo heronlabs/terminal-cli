@@ -3,7 +3,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# shellcheck source=integration/_lib.sh
+# shellcheck source=tests-integration/_lib.sh
 . "$SCRIPT_DIR/../_lib.sh"
 
 HCLI="node $REPO_ROOT/bin/src/main.js"

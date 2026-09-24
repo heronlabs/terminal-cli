@@ -13,9 +13,9 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 | Command | What it does |
 |---|---|
 | `pnpm build` | `nest build --path tsconfig.bin.json` → `bin/` |
-| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML + shellcheck on `src/**/*.sh` and `integration/**/*.sh` |
+| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML + shellcheck on `src/**/*.sh` and `tests-integration/**/*.sh` |
 | `pnpm lint:fix` | `gts fix` + eslint `--fix` on JSON/YAML + shellcheck (check-only) |
-| `pnpm lint:shell` | shellcheck on `src/**/*.sh` and `integration/**/*.sh` (config: `.shellcheckrc`; scripts are shebang-less by design) |
+| `pnpm lint:shell` | shellcheck on `src/**/*.sh` and `tests-integration/**/*.sh` (config: `.shellcheckrc`; scripts are shebang-less by design) |
 | `pnpm test:unit` | `VITE_CJS_IGNORE_WARNING=true vitest run` |
 | `pnpm test:integration` | Run both PostgreSQL and MySQL round-trip integration tests |
 | `pnpm test:integration:postgres` | `docker compose run --build --rm psql-integration` |
@@ -156,7 +156,7 @@ via `easypanel/` inline-Dockerfile templates (`psql-backup.json`,
 configured by env — see `easypanel/README.md`. `docker-compose.yml` provides the
 local psql/mysql DBs (ports 5434/3307) plus the `psql-integration`/
 `mysql-integration` runner services that execute the backup/rollup round-trip
-integration tests inside the prod-shaped `integration/{postgres,mysql}/Dockerfile`
+integration tests inside the prod-shaped `tests-integration/{postgres,mysql}/Dockerfile`
 images (`docker compose run --build --rm <svc>-integration`).
 
 ## TypeScript
