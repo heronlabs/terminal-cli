@@ -27,10 +27,14 @@ export class PsqlBackupCommand extends CommandRunner {
   }
 
   public async run(_args?: string[], options?: BackupOptions) {
-    await this.psqlBackupService.run(
+    const result = await this.psqlBackupService.run(
       options?.[BackupOptionsKeys.LOCAL] ?? false,
       options?.[BackupOptionsKeys.FILENAME],
     );
+
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
   }
 
   constructor(private readonly psqlBackupService: PsqlBackupService) {

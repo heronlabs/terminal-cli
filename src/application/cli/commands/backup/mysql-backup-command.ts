@@ -27,10 +27,14 @@ export class MysqlBackupCommand extends CommandRunner {
   }
 
   public async run(_args?: string[], options?: BackupOptions) {
-    await this.mysqlBackupService.run(
+    const result = await this.mysqlBackupService.run(
       options?.[BackupOptionsKeys.LOCAL] ?? false,
       options?.[BackupOptionsKeys.FILENAME],
     );
+
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
   }
 
   constructor(private readonly mysqlBackupService: MysqlBackupService) {

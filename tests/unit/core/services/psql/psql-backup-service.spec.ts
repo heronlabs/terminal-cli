@@ -1,6 +1,7 @@
+import {Upload} from '@aws-sdk/lib-storage';
 import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
-import {readFileSync, unlinkSync} from 'fs';
+import {rmSync, unlinkSync} from 'fs';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {PsqlBackupService} from '../../../../../src/core/services/psql/psql-backup-service';
@@ -8,13 +9,25 @@ import {
   createTestingModule,
   databaseConnection,
   loggerService,
-  s3Service,
   scriptLoaderService,
   ssmConfigService,
 } from '../../../../__mocks__/create-testing-module';
 
+const {uploadDone} = vi.hoisted(() => ({uploadDone: vi.fn()}));
+
+vi.mock('@aws-sdk/lib-storage', () => ({
+  Upload: vi.fn(
+    class {
+      done = uploadDone;
+    },
+  ),
+}));
 vi.mock('child_process', () => ({execSync: vi.fn()}));
-vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
+vi.mock('fs', () => ({
+  createReadStream: vi.fn(),
+  rmSync: vi.fn(),
+  unlinkSync: vi.fn(),
+}));
 
 describe('Given a service', () => {
   let service: PsqlBackupService;
@@ -121,10 +134,6 @@ describe('Given a service', () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
-      vi.mocked(readFileSync).mockReturnValueOnce(
-        Buffer.from(faker.string.alphanumeric(10)),
-      );
-      s3Service.send.mockResolvedValueOnce({});
 
       const result = await service.run(false, filename);
 
@@ -135,16 +144,12 @@ describe('Given a service', () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
-      vi.mocked(readFileSync).mockReturnValueOnce(
-        Buffer.from(faker.string.alphanumeric(10)),
-      );
-      s3Service.send.mockResolvedValueOnce({});
 
       await service.run(false, filename);
 
-      expect(s3Service.send).toHaveBeenCalledWith(
+      expect(Upload).toHaveBeenCalledWith(
         expect.objectContaining({
-          input: expect.objectContaining({Key: filename}),
+          params: expect.objectContaining({Key: filename}),
         }),
       );
     });
@@ -153,14 +158,19 @@ describe('Given a service', () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
-      vi.mocked(readFileSync).mockReturnValueOnce(
-        Buffer.from(faker.string.alphanumeric(10)),
-      );
-      s3Service.send.mockResolvedValueOnce({});
 
       await service.run(false, filename);
 
       expect(unlinkSync).toHaveBeenCalledWith(filename);
+    });
+
+    it('Should log the local backup file deletion after successful remote upload', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(false, filename);
+
       expect(loggerService.log).toHaveBeenCalledWith(
         'Deleted local backup file',
       );
@@ -176,14 +186,14 @@ describe('Given a service', () => {
       expect(unlinkSync).not.toHaveBeenCalled();
     });
 
-    it('Should not invoke S3 send when local flag is true', async () => {
+    it('Should not upload to S3 when local flag is true', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(true, filename);
 
-      expect(s3Service.send).not.toHaveBeenCalled();
+      expect(Upload).not.toHaveBeenCalled();
     });
 
     it('Should not invoke execSync when database resolution fails', async () => {
@@ -206,14 +216,113 @@ describe('Given a service', () => {
       expect(loggerService.error).toHaveBeenCalledWith(message);
     });
 
-    it('Should return undefined when dump fails', async () => {
+    it('Should return ok false when dump fails', async () => {
       vi.mocked(execSync).mockImplementationOnce(() => {
         throw new Error(faker.lorem.word());
       });
 
       const result = await service.run(true);
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ok: false});
+    });
+
+    it('Should remove the partial backup file when dump fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(true, filename);
+
+      expect(rmSync).toHaveBeenCalledWith(filename, {force: true});
+    });
+
+    it('Should not remove any file when dump succeeds', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true, filename);
+
+      expect(rmSync).not.toHaveBeenCalled();
+    });
+
+    it('Should return ok false when database resolution fails', async () => {
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(
+        new Error(faker.lorem.word()),
+      );
+
+      const result = await service.run(true);
+
+      expect(result).toEqual({ok: false});
+    });
+
+    it('Should not remove any file when database resolution fails', async () => {
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(
+        new Error(faker.lorem.word()),
+      );
+
+      await service.run(true);
+
+      expect(rmSync).not.toHaveBeenCalled();
+    });
+
+    it('Should not upload when dump fails', async () => {
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(false);
+
+      expect(Upload).not.toHaveBeenCalled();
+    });
+
+    it('Should return ok false when the upload fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+      uploadDone.mockRejectedValueOnce(new Error(faker.lorem.words()));
+
+      const result = await service.run(false, filename);
+
+      expect(result).toEqual({ok: false});
+    });
+
+    it('Should log the upload error message exactly when the upload fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+      const message = faker.lorem.sentence();
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+      uploadDone.mockRejectedValueOnce(new Error(message));
+
+      await service.run(false, filename);
+
+      expect(loggerService.error).toHaveBeenCalledWith(message);
+    });
+
+    it('Should delete the local backup file when the upload fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+      uploadDone.mockRejectedValueOnce(new Error(faker.lorem.words()));
+
+      await service.run(false, filename);
+
+      expect(unlinkSync).toHaveBeenCalledWith(filename);
+    });
+
+    it('Should log the local backup file deletion when the upload fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+      uploadDone.mockRejectedValueOnce(new Error(faker.lorem.words()));
+
+      await service.run(false, filename);
+
+      expect(loggerService.log).toHaveBeenCalledWith(
+        'Deleted local backup file',
+      );
     });
 
     it('Should log the dump error message exactly', async () => {

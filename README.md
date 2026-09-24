@@ -98,6 +98,15 @@ pnpm dep:cruise    # architecture check
 | `hcli mysql-rollup --filename <file>` | Restore a MySQL database from a backup |
 | `hcli version` | Print the current version |
 
+Every backup and rollup command exits with code `1` when it fails — the
+dump/restore, the database resolution, or the S3 upload/download — so cron and
+monitoring can act on it. A failed dump removes the partial file it left, and a
+failed upload still deletes the local backup file (unless `--local` was passed,
+where the file is the product). A failed remote rollup removes the downloaded
+file, or the partial file a failed download left; with `--local` the file is
+your input and is never deleted. S3 transfers are streamed, so backup size is
+not bounded by memory.
+
 ### Flags
 
 | Flag | Applies to | Meaning |
@@ -134,6 +143,10 @@ All configuration comes from environment variables (see [.env.example](./.env.ex
 | `AWS_SECRET_ACCESS_KEY` | for S3 | AWS credentials (or use an instance role) |
 
 Locally, `pnpm start -- <command>` loads variables from a `.env` file via `dotenv`.
+
+An unresolvable `DATABASE_URL`, or a missing `AWS_S3_BUCKET_NAME` when S3 is
+used, fails the command with exit code `1`, like any other backup or rollup
+failure.
 
 ## Architecture
 

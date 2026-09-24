@@ -1,6 +1,6 @@
+import {Upload} from '@aws-sdk/lib-storage';
 import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
-import {readFileSync} from 'fs';
 
 import {cliModule} from '../../../src/application/cli/cli-module';
 import {PsqlBackupCommand} from '../../../src/application/cli/commands/backup/psql-backup-command';
@@ -8,12 +8,24 @@ import {BackupOptionsKeys} from '../../../src/application/cli/commands/backup/ty
 import {
   createTestingModule,
   loggerService,
-  s3Service,
   scriptLoaderService,
 } from '../../__mocks__/create-testing-module';
 
+const {uploadDone} = vi.hoisted(() => ({uploadDone: vi.fn()}));
+
+vi.mock('@aws-sdk/lib-storage', () => ({
+  Upload: vi.fn(
+    class {
+      done = uploadDone;
+    },
+  ),
+}));
 vi.mock('child_process', () => ({execSync: vi.fn()}));
-vi.mock('fs', () => ({readFileSync: vi.fn(), unlinkSync: vi.fn()}));
+vi.mock('fs', () => ({
+  createReadStream: vi.fn(),
+  rmSync: vi.fn(),
+  unlinkSync: vi.fn(),
+}));
 describe('Given a CLI command', () => {
   let command: PsqlBackupCommand;
 
@@ -22,19 +34,25 @@ describe('Given a CLI command', () => {
     command = moduleRef.get(PsqlBackupCommand);
   });
 
+  afterEach(() => {
+    process.exitCode = undefined;
+  });
+
   describe('Given command psql-backup', () => {
     it('Should run the psql backup command without logging an error', async () => {
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      vi.mocked(readFileSync).mockReturnValueOnce(
-        Buffer.from(faker.string.alphanumeric(10)),
-      );
-
-      vi.spyOn(s3Service, 'send').mockImplementationOnce(vi.fn());
-
       await command.run();
 
       expect(loggerService.error).toHaveBeenCalledTimes(0);
+    });
+
+    it('Should leave the exit code unset when the backup succeeds', async () => {
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await command.run();
+
+      expect(process.exitCode).toBeUndefined();
     });
 
     it('Should log error when execSync throws', async () => {
@@ -47,46 +65,42 @@ describe('Given a CLI command', () => {
       expect(loggerService.error).toHaveBeenCalledWith('pg_dump failed');
     });
 
-    it('Should log error when readFileSync throws', async () => {
+    it('Should set exit code 1 when the dump fails', async () => {
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error('pg_dump failed');
+      });
+
+      await command.run();
+
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('Should log error when the upload rejects', async () => {
       const message = faker.lorem.words();
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      vi.mocked(readFileSync).mockImplementationOnce(() => {
-        throw new Error(message);
-      });
+      uploadDone.mockRejectedValueOnce(new Error(message));
 
       await command.run();
 
       expect(loggerService.error).toHaveBeenCalledWith(message);
     });
 
-    it('Should log error when s3Service throws', async () => {
-      const message = faker.lorem.words();
-
+    it('Should set exit code 1 when the upload fails', async () => {
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      vi.mocked(readFileSync).mockReturnValueOnce(
-        Buffer.from(faker.string.alphanumeric(10)),
-      );
-
-      s3Service.send.mockRejectedValueOnce(new Error(message));
+      uploadDone.mockRejectedValueOnce(new Error(faker.lorem.words()));
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(process.exitCode).toBe(1);
     });
 
-    it('Should log generic error when s3Service throws a non-Error', async () => {
+    it('Should log generic error when the upload rejects with a non-Error', async () => {
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      vi.mocked(readFileSync).mockReturnValueOnce(
-        Buffer.from(faker.string.alphanumeric(10)),
-      );
-
-      s3Service.send.mockImplementationOnce(() => {
-        throw faker.lorem.word();
-      });
+      uploadDone.mockRejectedValueOnce(faker.lorem.word());
 
       await command.run();
 
@@ -100,7 +114,7 @@ describe('Given a CLI command', () => {
 
       await command.run([], {[BackupOptionsKeys.LOCAL]: true});
 
-      expect(s3Service.send).not.toHaveBeenCalled();
+      expect(Upload).not.toHaveBeenCalled();
     });
 
     it('Should pass local true through to the service when the --local flag is passed', async () => {

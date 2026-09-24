@@ -1,6 +1,9 @@
-import {GetObjectCommand, PutObjectCommand, S3Client} from '@aws-sdk/client-s3';
+import {GetObjectCommand, S3Client} from '@aws-sdk/client-s3';
+import {Upload} from '@aws-sdk/lib-storage';
 import {Injectable, Logger} from '@nestjs/common';
-import {readFileSync, writeFileSync} from 'fs';
+import {createReadStream, createWriteStream} from 'fs';
+import type {Readable} from 'stream';
+import {pipeline} from 'stream/promises';
 
 import {EnvironmentService} from '../../environment/services/environment-service';
 
@@ -8,16 +11,17 @@ import {EnvironmentService} from '../../environment/services/environment-service
 export class S3StorageService {
   public async upload(filePath: string, key?: string) {
     try {
-      const body = readFileSync(filePath);
-
-      const command = new PutObjectCommand({
-        Bucket: this.environmentService.storage.bucketName,
-        Key: key ?? filePath,
-        Body: body,
-        ContentType: 'application/octet-stream',
+      const upload = new Upload({
+        client: this.s3,
+        params: {
+          Bucket: this.environmentService.storage.bucketName,
+          Key: key ?? filePath,
+          Body: createReadStream(filePath),
+          ContentType: 'application/octet-stream',
+        },
       });
 
-      await this.s3.send(command);
+      await upload.done();
 
       this.logger.log('Uploaded file to S3');
 
@@ -39,9 +43,8 @@ export class S3StorageService {
       });
 
       const response = await this.s3.send(command);
-      const bytes = await response.Body!.transformToByteArray();
 
-      writeFileSync(key, bytes);
+      await pipeline(response.Body as Readable, createWriteStream(key));
 
       this.logger.log('Downloaded file from S3');
 

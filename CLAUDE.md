@@ -27,6 +27,17 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 `psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`, `version`.
 Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3).
 
+Every backup and rollup command failure (database resolution, dump/restore,
+S3 upload/download) exits 1: `BackupService.run` / `RollupService.run` return
+`{ok: false}` and the command sets `process.exitCode = 1`; `main.ts` sets it too
+for bootstrap errors and for errors thrown by a command (nest-commander's
+`serviceErrorHandler`). A failed dump removes its partial file; a failed upload
+still deletes the local backup unless `--local`. A failed remote rollup removes
+the downloaded file, or the partial file a failed download left; `--local`
+never deletes the input file. S3 transfers stream
+(`@aws-sdk/lib-storage` `Upload` from `createReadStream`, download piped into
+`createWriteStream`).
+
 ## Source Layout
 
 | Path | Role |
@@ -37,7 +48,7 @@ Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3).
 | `src/core/services/` | One folder per engine — `{mysql,psql}/` with its backup + rollup services and `.sh` scripts; shared `script-loader-service.ts` at the root |
 | `src/infrastructure/environment/` | `EnvironmentService` — typed wrapper over `@nestjs/config` |
 | `src/infrastructure/log/` | `LogModule` — nestjs-pino global logger |
-| `src/infrastructure/storage/` | `S3StorageService` — AWS SDK v3 upload/download |
+| `src/infrastructure/storage/` | `S3StorageService` — AWS SDK v3 streamed upload (`@aws-sdk/lib-storage`) / download |
 
 ## Architecture Rules (`pnpm dep:cruise`)
 
