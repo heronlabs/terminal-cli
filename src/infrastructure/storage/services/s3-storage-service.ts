@@ -1,8 +1,4 @@
-import {
-  GetObjectCommand,
-  ListObjectsV2Command,
-  S3Client,
-} from '@aws-sdk/client-s3';
+import {GetObjectCommand, S3Client} from '@aws-sdk/client-s3';
 import {Upload} from '@aws-sdk/lib-storage';
 import {Injectable, Logger} from '@nestjs/common';
 import {createReadStream, createWriteStream} from 'fs';
@@ -10,8 +6,6 @@ import type {Readable} from 'stream';
 import {pipeline} from 'stream/promises';
 
 import {EnvironmentService} from '../../environment/services/environment-service';
-
-export type StoredObject = {key: string; size: number; lastModified: Date};
 
 @Injectable()
 export class S3StorageService {
@@ -61,51 +55,6 @@ export class S3StorageService {
       }
 
       return {ok: false, error: new Error('Error downloading file from S3')};
-    }
-  }
-
-  public async list(prefix: string) {
-    try {
-      const objects: StoredObject[] = [];
-      let continuationToken: string | undefined;
-
-      do {
-        const response = await this.s3.send(
-          new ListObjectsV2Command({
-            Bucket: this.environmentService.storage.bucketName,
-            Prefix: prefix,
-            ContinuationToken: continuationToken,
-          }),
-        );
-
-        response.Contents?.forEach(({Key, Size, LastModified}) => {
-          if (Key && LastModified) {
-            objects.push({
-              key: Key,
-              size: Size ?? 0,
-              lastModified: LastModified,
-            });
-          }
-        });
-
-        continuationToken = response.IsTruncated
-          ? response.NextContinuationToken
-          : undefined;
-      } while (continuationToken);
-
-      objects.sort(
-        (a, b) => b.lastModified.getTime() - a.lastModified.getTime(),
-      );
-
-      return {ok: true as const, objects};
-    } catch (error) {
-      return {
-        ok: false as const,
-        error:
-          error instanceof Error
-            ? error
-            : new Error('Error listing S3 objects'),
-      };
     }
   }
 

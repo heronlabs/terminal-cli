@@ -1,6 +1,5 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
-import {JobRunnerService} from '../../../../core/services/job/job-runner-service';
 import {PsqlRollupService} from '../../../../core/services/psql/psql-rollup-service';
 import {RollupOptions, RollupOptionsKeys} from './types/rollup-options';
 
@@ -14,6 +13,7 @@ export class PsqlRollupCommand extends CommandRunner {
     flags: `-f, --${RollupOptionsKeys.FILENAME} <filename>`,
     description:
       'Backup filename to restore (e.g. mydb-2026-03-05T12-00-00Z.sql.gz)',
+    required: true,
   })
   parseFilename(val: string): string {
     return val;
@@ -28,34 +28,18 @@ export class PsqlRollupCommand extends CommandRunner {
     return true;
   }
 
-  @Option({
-    flags: `--${RollupOptionsKeys.LATEST}`,
-    description: 'Restore the newest backup of the configured database from S3',
-  })
-  parseLatest(): boolean {
-    return true;
-  }
-
   public async run(_args: string[], options: RollupOptions) {
-    const outcome = await this.jobRunner.run(
-      {command: 'psql-rollup', job: 'rollup', trigger: 'manual', lock: true},
-      () =>
-        this.psqlRollupService.run({
-          filename: options[RollupOptionsKeys.FILENAME],
-          latest: options[RollupOptionsKeys.LATEST] ?? false,
-          local: options[RollupOptionsKeys.LOCAL] ?? false,
-        }),
+    const result = await this.psqlRollupService.run(
+      options[RollupOptionsKeys.FILENAME],
+      options[RollupOptionsKeys.LOCAL] ?? false,
     );
 
-    if (outcome !== 'ok') {
+    if (!result.ok) {
       process.exitCode = 1;
     }
   }
 
-  constructor(
-    private readonly psqlRollupService: PsqlRollupService,
-    private readonly jobRunner: JobRunnerService,
-  ) {
+  constructor(private readonly psqlRollupService: PsqlRollupService) {
     super();
   }
 }

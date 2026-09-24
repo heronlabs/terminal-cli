@@ -11,7 +11,7 @@
 Database backup & rollup CLI for PostgreSQL and MySQL. Dumps a database to a
 gzipped SQL file, uploads it to S3 (or keeps it local), and restores it back on
 demand. Built with NestJS + [nest-commander](https://nest-commander.jaymcdoniel.dev/),
-AWS S3, Luxon, croner and Sentry. Designed to run as a long-running scheduler container on EasyPanel.
+AWS S3, and Luxon. Designed to run as a scheduled cron container on EasyPanel.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ AWS S3, Luxon, croner and Sentry. Designed to run as a long-running scheduler co
 - [Commands](#commands)
 - [Configuration](#configuration)
 - [Architecture](#architecture)
-- [Docker & Scheduling](#docker--scheduling)
+- [Docker & Cron](#docker--cron)
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
@@ -32,9 +32,7 @@ Scheduled, type-safe database backups with a single binary:
 
 - **One tool, two engines** — PostgreSQL (`pg_dump`/`psql`) and MySQL (`mysqldump`/`mysql`) behind one CLI.
 - **S3 or local** — push backups to S3 by default, or keep them on disk with `--local` (handy for seeding).
-- **Scheduler built in** — `hcli run` backs up on start and on `BACKUP_SCHEDULE`; one image plus `easypanel/` inline-Dockerfile templates deploy it.
-- **Observable** — optional Sentry: logs, errors and a cron monitor of the scheduled backup, with credentials redacted.
-- **Safe restores** — `--latest` picks the newest backup of the exact database, and a shared job lock keeps backups and rollups from overlapping.
+- **Cron-ready container** — one image plus `easypanel/` inline-Dockerfile templates run a backup on start and every 12 hours.
 - **100% tested** — v8 coverage + Stryker mutation testing, both at 100% thresholds.
 
 ## Install
@@ -94,11 +92,10 @@ pnpm dep:cruise    # architecture check
 
 | Command | Description |
 |---|---|
-| `hcli run` | Long-running scheduler: backs up `BACKUP_ENGINE` on start and on `BACKUP_SCHEDULE` until SIGTERM/SIGINT |
 | `hcli psql-backup` | Back up a PostgreSQL database (S3 by default) |
-| `hcli psql-rollup --filename <file>` / `--latest` | Restore a PostgreSQL database from a backup |
+| `hcli psql-rollup --filename <file>` | Restore a PostgreSQL database from a backup |
 | `hcli mysql-backup` | Back up a MySQL database (S3 by default) |
-| `hcli mysql-rollup --filename <file>` / `--latest` | Restore a MySQL database from a backup |
+| `hcli mysql-rollup --filename <file>` | Restore a MySQL database from a backup |
 | `hcli version` | Print the current version |
 
 Every backup and rollup command exits with code `1` when it fails — the
@@ -110,20 +107,12 @@ file, or the partial file a failed download left; with `--local` the file is
 your input and is never deleted. S3 transfers are streamed, so backup size is
 not bounded by memory.
 
-A rollup refuses (exit `1`, a warning, no Sentry issue) a request with both or
-neither of `--filename` and `--latest`, or `--latest` with `--local`. Backups
-and rollups share a lock file: a manual command that finds another backup or
-rollup running exits `1`; a scheduled backup is skipped with a warning.
-`hcli run` exits `1` when `BACKUP_ENGINE` is missing or `BACKUP_SCHEDULE` is not
-a valid cron pattern.
-
 ### Flags
 
 | Flag | Applies to | Meaning |
 |---|---|---|
-| `-f, --filename <name>` | backups, rollups | Backup filename. Backups default to `<database>-<timestamp>.sql.gz`; a rollup takes either it or `--latest`. |
-| `--local` | backups, rollups | Read/write the backup on the local filesystem instead of S3. |
-| `--latest` | rollups | Restore the newest backup of the configured database from S3. Not combinable with `--filename` or `--local`. |
+| `-f, --filename <name>` | all | Backup filename. Backups default to `<database>-<timestamp>.sql.gz`; rollup requires it. |
+| `--local` | all | Read/write the backup on the local filesystem instead of S3. |
 
 Examples:
 
@@ -139,9 +128,6 @@ hcli psql-rollup --local --filename seed.sql.gz
 
 # Restore from S3
 hcli mysql-rollup --filename mydb-2026-03-05T12-00-00Z.sql.gz
-
-# Restore the newest backup of the configured database from S3
-hcli psql-rollup --latest
 ```
 
 ## Configuration
@@ -155,27 +141,14 @@ All configuration comes from environment variables (see [.env.example](./.env.ex
 | `AWS_REGION` | for S3 | AWS region |
 | `AWS_ACCESS_KEY_ID` | for S3 | AWS credentials (or use an instance role) |
 | `AWS_SECRET_ACCESS_KEY` | for S3 | AWS credentials (or use an instance role) |
-| `BACKUP_ENGINE` | for `hcli run` | `psql` or `mysql` |
-| `BACKUP_SCHEDULE` | — | Cron pattern (UTC) of `hcli run` and of the Sentry monitor. Default `0 */12 * * *` |
-| `BACKUP_ON_START` | — | `false` skips the backup when `hcli run` starts. Default `true` |
-| `SENTRY_DSN` | — | Enables Sentry. Unset or empty: no Sentry, no network calls |
-| `SENTRY_ENVIRONMENT` | — | Sentry environment. Default `production` |
-| `SENTRY_MONITOR_SLUG` | — | Enables the cron monitor check-ins of the scheduled backup |
-| `SENTRY_MONITOR_MAX_RUNTIME` | — | Minutes before the monitor reports a backup as stuck. Default `60` |
+| `SENTRY_DSN` | ❌ | Sentry DSN; when set, backup/rollup failures and command errors are reported to Sentry (errors only). Unset or empty disables Sentry. |
+| `SENTRY_ENVIRONMENT` | ❌ | Sentry environment (default `production`) |
 
 Locally, `pnpm start -- <command>` loads variables from a `.env` file via `dotenv`.
 
 An unresolvable `DATABASE_URL`, or a missing `AWS_S3_BUCKET_NAME` when S3 is
 used, fails the command with exit code `1`, like any other backup or rollup
 failure.
-
-With `SENTRY_DSN` set, every log line of every command goes to Sentry Logs and
-every unexpected failure becomes a Sentry issue, all carrying the attributes
-`command`, `job` (`backup` | `rollup`), `job.id` and `trigger`
-(`schedule` | `manual`). Connection-URL credentials, `PGPASSWORD=`, `MYSQL_PWD=`,
-`AWS_SECRET_ACCESS_KEY=` and `AKIA…` keys are redacted before anything is sent.
-Only the scheduled backup of `hcli run` checks in to the monitor
-(`SENTRY_MONITOR_SLUG`); the release is `terminal-cli@<version>`.
 
 ## Architecture
 
@@ -186,16 +159,14 @@ src/
 ├── application/          # CLI surface (nest-commander)
 │   └── cli/
 │       ├── cli-module.ts
-│       └── commands/     # backup/, rollup/, run/, version/ + option types
+│       └── commands/     # backup/, rollup/, version/ + per-command option types
 ├── core/                 # domain logic
 │   ├── interfaces/       # BackupService / RollupService abstract base services
-│   ├── types/            # job result/options types
-│   └── services/         # {mysql,psql}-{backup,rollup}-service, job/ (lock + runner),
-│                         # backup-list/, schedule/ (croner)
+│   └── services/         # {mysql,psql}-{backup,rollup}-service
 └── infrastructure/       # adapters
     ├── environment/      # EnvironmentService (ConfigService wrapper)
-    ├── log/              # nestjs-pino + Sentry Logs bridge logger
-    ├── monitoring/       # Sentry wrapper, job context (AsyncLocalStorage), secret scrubber
+    ├── log/              # nestjs-pino logger module
+    ├── monitoring/       # MonitoringService (Sentry error reporting)
     └── storage/          # S3StorageService (AWS SDK v3)
 ```
 
@@ -205,14 +176,15 @@ src/
   the `dump`/`restore` shell commands.
 - **`infrastructure/`** adapters never import inward (enforced by `pnpm dep:cruise`).
 
-## Docker & Scheduling
+## Docker & Cron
 
 One published image — `heronlabs/terminal-cli` (built from `Dockerfile`) — carries
-`hcli` on `PATH` and both DB clients. Scheduled backups are deployed from the
-inline-Dockerfile templates under [`easypanel/`](easypanel/): each one is
-`FROM heronlabs/terminal-cli:<tag>` with `CMD ["hcli", "run"]`, configured by
-`BACKUP_ENGINE` / `BACKUP_SCHEDULE` and the optional Sentry variables. See
-[`easypanel/README.md`](easypanel/README.md) for deploy and restore steps.
+`hcli` on `PATH`, both DB clients, and busybox `crond`. Scheduled backups are
+deployed from the inline-Dockerfile templates under [`easypanel/`](easypanel/):
+each one is `FROM heronlabs/terminal-cli:<tag>`, adds a 12-hourly crontab, and
+runs an immediate backup before starting `crond` in the foreground (dumping
+`printenv` to `/etc/environment` so cron inherits the runtime variables EasyPanel
+injects). See [`easypanel/README.md`](easypanel/README.md) for deploy steps.
 
 Local stack for manual testing — `docker-compose.yml` runs the psql + mysql DBs
 (exposed on ports 5434/3307) and the `psql-integration`/`mysql-integration`

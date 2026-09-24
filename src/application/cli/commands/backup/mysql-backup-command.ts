@@ -1,6 +1,5 @@
 import {Command, CommandRunner, Option} from 'nest-commander';
 
-import {JobRunnerService} from '../../../../core/services/job/job-runner-service';
 import {MysqlBackupService} from '../../../../core/services/mysql/mysql-backup-service';
 import {BackupOptions, BackupOptionsKeys} from './types/backup-options';
 
@@ -28,24 +27,17 @@ export class MysqlBackupCommand extends CommandRunner {
   }
 
   public async run(_args?: string[], options?: BackupOptions) {
-    const outcome = await this.jobRunner.run(
-      {command: 'mysql-backup', job: 'backup', trigger: 'manual', lock: true},
-      () =>
-        this.mysqlBackupService.run(
-          options?.[BackupOptionsKeys.LOCAL] ?? false,
-          options?.[BackupOptionsKeys.FILENAME],
-        ),
+    const result = await this.mysqlBackupService.run(
+      options?.[BackupOptionsKeys.LOCAL] ?? false,
+      options?.[BackupOptionsKeys.FILENAME],
     );
 
-    if (outcome !== 'ok') {
+    if (!result.ok) {
       process.exitCode = 1;
     }
   }
 
-  constructor(
-    private readonly mysqlBackupService: MysqlBackupService,
-    private readonly jobRunner: JobRunnerService,
-  ) {
+  constructor(private readonly mysqlBackupService: MysqlBackupService) {
     super();
   }
 }

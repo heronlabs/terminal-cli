@@ -2,8 +2,8 @@ import {Logger} from '@nestjs/common';
 import {unlinkSync} from 'fs';
 import {DateTime} from 'luxon';
 
+import {MonitoringService} from '../../infrastructure/monitoring/services/monitoring-service';
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
-import {JobResult} from '../types/job';
 
 export abstract class BackupService {
   protected abstract dump(
@@ -22,12 +22,13 @@ export abstract class BackupService {
     return filename ?? `${defaultBaseName}-${timestamp}.${extension}`;
   }
 
-  public async run(local: boolean, filename?: string): Promise<JobResult> {
+  public async run(local: boolean, filename?: string) {
     const result = await this.dump(filename);
 
     if (!result.ok) {
       this.logger.error(result.error.message);
-      return {ok: false, error: result.error};
+      this.monitoringService.captureError(result.error);
+      return {ok: false};
     }
 
     if (local) {
@@ -43,7 +44,8 @@ export abstract class BackupService {
 
     if (uploadError) {
       this.logger.error(uploadError.message);
-      return {ok: false, error: uploadError};
+      this.monitoringService.captureError(uploadError);
+      return {ok: false};
     }
 
     return {ok: true};
@@ -52,5 +54,6 @@ export abstract class BackupService {
   constructor(
     protected readonly logger: Logger,
     protected readonly s3StorageService: S3StorageService,
+    protected readonly monitoringService: MonitoringService,
   ) {}
 }

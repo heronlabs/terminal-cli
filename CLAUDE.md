@@ -1,9 +1,7 @@
 # terminal-cli — Heron CLI (`hcli`)
 
 Standalone NestJS CLI. Database backup & rollup for PostgreSQL and MySQL →
-S3 (or local), with a long-running scheduler (`hcli run`) and optional Sentry
-monitoring. Built with nest-commander, AWS SDK v3, Luxon, nestjs-pino, croner,
-`@sentry/node`.
+S3 (or local). Built with nest-commander, AWS SDK v3, Luxon, nestjs-pino.
 
 Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 `CliModule` via `CommandFactory` (nest-commander).
@@ -26,47 +24,38 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 
 ## CLI Commands (`hcli`)
 
-`run`, `psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`, `version`.
-Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3); rollups
-also take `--latest` (newest S3 backup of the database; excludes `--filename`
-and `--local`).
-
-`hcli run` schedules the backup of `BACKUP_ENGINE` with `croner` on
-`BACKUP_SCHEDULE` (UTC, no overlap), backs up on start unless
-`BACKUP_ON_START=false`, and stops on SIGTERM/SIGINT after the backup in flight;
-a missing engine or invalid schedule exits 1. Every command goes through
-`JobRunnerService`: a `job.id`, the job attributes in an `AsyncLocalStorage`, the
-shared lock file (`<tmpdir>/hcli.lock`, stale-pid recovery) for backups and
-rollups, the Sentry check-in of the scheduled backup, and the error capture. A
-rollup with both or neither of `--filename`/`--latest`, or `--latest` with
-`--local`, is refused: exit 1, a warning, no Sentry issue.
+`psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`, `version`.
+Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3).
 
 Every backup and rollup command failure (database resolution, dump/restore,
 S3 upload/download) exits 1: `BackupService.run` / `RollupService.run` return
-`{ok: false, error}` (a `JobResult`), `JobRunnerService.run` turns it into a
-`failed` outcome and the command sets `process.exitCode = 1`; `main.ts` sets it
-too for bootstrap errors and for errors thrown by a command (nest-commander's
-`serviceErrorHandler`), reports them to Sentry, and closes the app so Sentry
-flushes. A failed dump removes its partial file; a failed upload
+`{ok: false}` and the command sets `process.exitCode = 1`; `main.ts` sets it too
+for bootstrap errors and for errors thrown by a command (nest-commander's
+`serviceErrorHandler`). A failed dump removes its partial file; a failed upload
 still deletes the local backup unless `--local`. A failed remote rollup removes
 the downloaded file, or the partial file a failed download left; `--local`
 never deletes the input file. S3 transfers stream
 (`@aws-sdk/lib-storage` `Upload` from `createReadStream`, download piped into
 `createWriteStream`).
 
+Sentry error reporting is opt-in via `SENTRY_DSN` (errors only — no logs or
+tracing). `MonitoringService.init()` (called from `main.ts`) is a
+no-op without a DSN; the base backup/rollup services call `captureError` next to
+each failure log, `main.ts` `fail` captures bootstrap/command errors, and
+`app.close()` flushes (2s) via `onApplicationShutdown`.
+
 ## Source Layout
 
 | Path | Role |
 |---|---|
 | `src/main.ts` | Bootstrap — `CommandFactory.runApplication(CliModule)` |
-| `src/application/cli/` | `cli-module.ts` + `commands/{backup,rollup,run,version}/` (nest-commander commands + option types) |
-| `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration, rollup request validation) |
-| `src/core/services/` | One folder per engine — `{mysql,psql}/` with its backup + rollup services and `.sh` scripts; `job/` (lock + runner), `backup-list/`, `schedule/` (croner); shared `script-loader-service.ts` at the root |
-| `src/core/types/` | `JobResult`, `JobOptions`, `JobOutcome` |
-| `src/infrastructure/environment/` | `EnvironmentService` — typed wrapper over `@nestjs/config` (database, storage, monitoring, schedule, release) |
-| `src/infrastructure/log/` | `LogModule` — nestjs-pino + `BridgeLoggerService` (every log line to pino and Sentry Logs) |
-| `src/infrastructure/monitoring/` | `MonitoringModule` — `MonitoringService` (`@sentry/node` init, logs, errors, check-ins, flush), `JobContextService` (`AsyncLocalStorage`), `SecretScrubberService` |
-| `src/infrastructure/storage/` | `S3StorageService` — AWS SDK v3 streamed upload (`@aws-sdk/lib-storage`) / download / list |
+| `src/application/cli/` | `cli-module.ts` + `commands/{backup,rollup,version}/` (nest-commander commands + option types) |
+| `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration) |
+| `src/core/services/` | One folder per engine — `{mysql,psql}/` with its backup + rollup services and `.sh` scripts; shared `script-loader-service.ts` at the root |
+| `src/infrastructure/environment/` | `EnvironmentService` — typed wrapper over `@nestjs/config` |
+| `src/infrastructure/log/` | `LogModule` — nestjs-pino global logger |
+| `src/infrastructure/monitoring/` | `MonitoringService` — Sentry `init` / `captureError` / flush on shutdown |
+| `src/infrastructure/storage/` | `S3StorageService` — AWS SDK v3 streamed upload (`@aws-sdk/lib-storage`) / download |
 
 ## Architecture Rules (`pnpm dep:cruise`)
 
@@ -74,7 +63,7 @@ never deletes the input file. S3 transfers stream
 - `core/` must not import `application/`.
 - `application/` must not import `infrastructure/` (except `cli-module.ts` — the composition root).
 - `infrastructure/` must not import `application/` or `core/`.
-- `core/` MAY import `infrastructure/` — the backup/rollup base services depend on the S3 adapter by design.
+- `core/` MAY import `infrastructure/` — the backup/rollup base services depend on the S3 adapter and `MonitoringService` by design.
 - Production code in `src/` must not import `devDependencies` (type-only imports allowed).
 - Every import from `src/` must resolve to a `package.json` dependency (no phantom deps).
 - Every module in `src/` must be reachable from `main.ts` (dead-code guard).
@@ -85,28 +74,20 @@ never deletes the input file. S3 transfers stream
 Env vars (see `.env.example`): `DATABASE_URL` (a `postgres://`/`mysql://`
 connection URL, or an AWS SSM Parameter Store ARN resolved via
 `@heronlabs/env-ssm`), and for S3 `AWS_S3_BUCKET_NAME`, `AWS_REGION`,
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. `DATABASE_URL` is resolved through an
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; optional `SENTRY_DSN` and
+`SENTRY_ENVIRONMENT` (default `production`). `DATABASE_URL` is resolved through an
 injected `SsmConfigService` (env-ssm v2 no longer ships a NestJS module, so
 `EnvironmentModule` provides it via `SsmConfigFactory.make()`) and parsed by the
 async `EnvironmentService.database()`
 into the host/port/name/user/password the dump/restore services pass to engine
 subprocesses via env vars.
 
-Scheduler and Sentry (all optional except `BACKUP_ENGINE` for `hcli run`):
-`BACKUP_ENGINE` (`psql` | `mysql`), `BACKUP_SCHEDULE` (`0 */12 * * *`),
-`BACKUP_ON_START` (`true`), `SENTRY_DSN` (unset or empty disables Sentry — no
-network calls), `SENTRY_ENVIRONMENT` (`production`), `SENTRY_MONITOR_SLUG`
-(enables the scheduled backup's cron check-ins), `SENTRY_MONITOR_MAX_RUNTIME`
-(`60` minutes). Logs and errors carry `command`, `job`, `job.id`, `trigger`;
-`beforeSend`/`beforeSendLog` redact URL credentials, `PGPASSWORD=`, `MYSQL_PWD=`,
-`AWS_SECRET_ACCESS_KEY=` and `AKIA…` keys. Release: `terminal-cli@<version>`.
-
 ## Testing
 
 | Detail | Value |
 |---|---|
 | Framework | Vitest 4.x (`vitest.config.ts`; default transform handles NestJS decorators) |
-| Test location | `tests/unit/` (mirrors `src/`) |
+| Test location | `tests/unit/` (mirrors `src/`); integration round-trips in `tests-integration/` |
 | Shared mocks | `tests/__mocks__/create-testing-module.ts` (moq.ts + vitest) |
 | Libraries | `@faker-js/faker`, `moq.ts`, `nest-commander-testing` |
 | Coverage | v8, 100% thresholds; excludes `main.ts`, `*.d.ts`, `*factory.ts`, `types/` |
@@ -148,10 +129,10 @@ is public, since npm only signs sigstore provenance for public source repos.
 ## Docker
 
 One generic image, `heronlabs/terminal-cli` (built from `Dockerfile`), carries
-the CLI + all DB clients + the `hcli` wrapper. Scheduled backups are deployed
-via `easypanel/` inline-Dockerfile templates (`psql-backup.json`,
-`mysql-backup.json`) that `FROM` that base and run `CMD ["hcli", "run"]`,
-configured by env — see `easypanel/README.md`. `docker-compose.yml` provides the
+the CLI + all DB clients + the `hcli` wrapper + busybox `crond`. Scheduled
+backups are deployed via `easypanel/` inline-Dockerfile templates
+(`psql-backup.json`, `mysql-backup.json`) that `FROM` that base, add a crontab,
+and run `crond` — see `easypanel/README.md`. `docker-compose.yml` provides the
 local psql/mysql DBs (ports 5434/3307) plus the `psql-integration`/
 `mysql-integration` runner services that execute the backup/rollup round-trip
 integration tests inside the prod-shaped `tests-integration/{postgres,mysql}/Dockerfile`

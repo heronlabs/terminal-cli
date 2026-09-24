@@ -1,15 +1,8 @@
 import {Logger} from '@nestjs/common';
 import {rmSync, unlinkSync} from 'fs';
 
+import {MonitoringService} from '../../infrastructure/monitoring/services/monitoring-service';
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
-import {BackupListService} from '../services/backup-list/backup-list-service';
-import {JobResult} from '../types/job';
-
-export type RollupRequest = {
-  filename?: string;
-  latest: boolean;
-  local: boolean;
-};
 
 export abstract class RollupService {
   protected abstract restore(
@@ -18,49 +11,7 @@ export abstract class RollupService {
     {ok: true; data: {backupFileName: string}} | {ok: false; error: Error}
   >;
 
-  public async run(request: RollupRequest): Promise<JobResult> {
-    const invalid = this.validate(request);
-
-    if (invalid) {
-      return {ok: false, error: invalid, expected: true};
-    }
-
-    const resolved = await this.resolveFilename(request);
-
-    if (!resolved.ok) {
-      this.logger.error(resolved.error.message);
-      return resolved;
-    }
-
-    return this.downloadAndRestore(resolved.key, request.local);
-  }
-
-  private validate({filename, latest, local}: RollupRequest) {
-    if (Boolean(filename) === latest) {
-      return new Error('Pass either --filename or --latest');
-    }
-
-    if (latest && local) {
-      return new Error(
-        '--latest reads from S3 and cannot be combined with --local',
-      );
-    }
-
-    return undefined;
-  }
-
-  private async resolveFilename({filename, latest}: RollupRequest) {
-    if (!latest) {
-      return {ok: true as const, key: filename as string};
-    }
-
-    return this.backupListService.latest();
-  }
-
-  private async downloadAndRestore(
-    filename: string,
-    local: boolean,
-  ): Promise<JobResult> {
+  public async run(filename: string, local: boolean) {
     if (!local) {
       const {error: downloadError} =
         await this.s3StorageService.download(filename);
@@ -68,7 +19,8 @@ export abstract class RollupService {
       if (downloadError) {
         rmSync(filename, {force: true});
         this.logger.error(downloadError.message);
-        return {ok: false, error: downloadError};
+        this.monitoringService.captureError(downloadError);
+        return {ok: false};
       }
     }
 
@@ -76,8 +28,9 @@ export abstract class RollupService {
 
     if (!result.ok) {
       this.logger.error(result.error.message);
+      this.monitoringService.captureError(result.error);
       this.deleteDownloadedFile(filename, local);
-      return {ok: false, error: result.error};
+      return {ok: false};
     }
 
     this.logger.log(`Restored ${result.data.backupFileName}`);
@@ -99,6 +52,6 @@ export abstract class RollupService {
   constructor(
     protected readonly logger: Logger,
     protected readonly s3StorageService: S3StorageService,
-    protected readonly backupListService: BackupListService,
+    protected readonly monitoringService: MonitoringService,
   ) {}
 }

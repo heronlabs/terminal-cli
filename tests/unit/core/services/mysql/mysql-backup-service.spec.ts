@@ -2,9 +2,11 @@ import {Upload} from '@aws-sdk/lib-storage';
 import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
 import {rmSync, unlinkSync} from 'fs';
+import type {MockInstance} from 'vitest';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {MysqlBackupService} from '../../../../../src/core/services/mysql/mysql-backup-service';
+import {MonitoringService} from '../../../../../src/infrastructure/monitoring/services/monitoring-service';
 import {
   createTestingModule,
   databaseConnection,
@@ -31,10 +33,12 @@ vi.mock('fs', () => ({
 
 describe('Given a service', () => {
   let service: MysqlBackupService;
+  let captureError: MockInstance<MonitoringService['captureError']>;
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(MysqlBackupService);
+    captureError = vi.spyOn(moduleRef.get(MonitoringService), 'captureError');
   });
 
   describe('Given mysql backup', () => {
@@ -223,10 +227,7 @@ describe('Given a service', () => {
 
       const result = await service.run(true);
 
-      expect(result).toEqual({
-        ok: false,
-        error: new Error('mariadb-dump failed'),
-      });
+      expect(result).toEqual({ok: false});
     });
 
     it('Should remove the partial backup file when dump fails', async () => {
@@ -252,12 +253,13 @@ describe('Given a service', () => {
     });
 
     it('Should return ok false when database resolution fails', async () => {
-      const error = new Error(faker.lorem.word());
-      ssmConfigService.getOrThrow.mockRejectedValueOnce(error);
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(
+        new Error(faker.lorem.word()),
+      );
 
       const result = await service.run(true);
 
-      expect(result).toEqual({ok: false, error});
+      expect(result).toEqual({ok: false});
     });
 
     it('Should not remove any file when database resolution fails', async () => {
@@ -281,15 +283,14 @@ describe('Given a service', () => {
     });
 
     it('Should return ok false when the upload fails', async () => {
-      const error = new Error(faker.lorem.words());
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
-      uploadDone.mockRejectedValueOnce(error);
+      uploadDone.mockRejectedValueOnce(new Error(faker.lorem.words()));
 
       const result = await service.run(false, filename);
 
-      expect(result).toEqual({ok: false, error});
+      expect(result).toEqual({ok: false});
     });
 
     it('Should log the upload error message exactly when the upload fails', async () => {
@@ -336,6 +337,39 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(loggerService.error).toHaveBeenCalledWith('mariadb-dump failed');
+    });
+  });
+
+  describe('Given monitoring', () => {
+    it('Should capture the dump error', async () => {
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(true);
+
+      expect(captureError).toHaveBeenCalledWith(
+        new Error('mariadb-dump failed'),
+      );
+    });
+
+    it('Should capture the upload error', async () => {
+      const error = new Error(faker.lorem.sentence());
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+      uploadDone.mockRejectedValueOnce(error);
+
+      await service.run(false);
+
+      expect(captureError).toHaveBeenCalledWith(error);
+    });
+
+    it('Should not capture when the backup succeeds', async () => {
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true);
+
+      expect(captureError).not.toHaveBeenCalled();
     });
   });
 });

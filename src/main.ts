@@ -3,9 +3,9 @@ import 'reflect-metadata';
 
 import * as Sentry from '@sentry/node';
 import {CommandFactory} from 'nest-commander';
+import {Logger as PinoLogger} from 'nestjs-pino';
 
 import {CliModule} from './application/cli/cli-module';
-import {BridgeLoggerService} from './infrastructure/log/services/bridge-logger-service';
 import {MonitoringService} from './infrastructure/monitoring/services/monitoring-service';
 
 const fail = (error: unknown) => {
@@ -19,14 +19,11 @@ const bootstrap = async () => {
     serviceErrorHandler: fail,
   });
 
-  app.useLogger(app.get(BridgeLoggerService));
+  app.useLogger(app.get(PinoLogger));
   app.get(MonitoringService).init();
 
-  try {
-    await CommandFactory.runApplication(app);
-  } finally {
-    await app.close();
-  }
+  await CommandFactory.runApplication(app).catch(fail);
+  await app.close();
 };
 
 bootstrap().catch(fail);

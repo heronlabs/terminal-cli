@@ -3,6 +3,7 @@ import {execSync} from 'child_process';
 import {rmSync} from 'fs';
 
 import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
+import {MonitoringService} from '../../../infrastructure/monitoring/services/monitoring-service';
 import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
 import {BackupService} from '../../interfaces/backup-service';
 import {ScriptLoaderService} from '../script-loader-service';
@@ -52,7 +53,8 @@ export class MysqlBackupService extends BackupService {
     private readonly environmentService: EnvironmentService,
     protected readonly s3StorageService: S3StorageService,
     private readonly scriptLoader: ScriptLoaderService,
+    protected readonly monitoringService: MonitoringService,
   ) {
-    super(logger, s3StorageService);
+    super(logger, s3StorageService, monitoringService);
   }
 }

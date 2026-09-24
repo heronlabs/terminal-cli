@@ -19,20 +19,9 @@ export class EnvironmentService {
 
   get monitoring() {
     return {
-      dsn: this.optional('SENTRY_DSN'),
-      environment: this.optional('SENTRY_ENVIRONMENT') ?? 'production',
-      monitorSlug: this.optional('SENTRY_MONITOR_SLUG'),
-      maxRuntimeMinutes: Number(
-        this.optional('SENTRY_MONITOR_MAX_RUNTIME') ?? '60',
-      ),
-    };
-  }
-
-  get schedule() {
-    return {
-      engine: this.optional('BACKUP_ENGINE'),
-      backup: this.optional('BACKUP_SCHEDULE') ?? '0 */12 * * *',
-      backupOnStart: this.optional('BACKUP_ON_START') !== 'false',
+      dsn: this.configService.get<string>('SENTRY_DSN'),
+      environment:
+        this.configService.get<string>('SENTRY_ENVIRONMENT') || 'production',
     };
   }
 
@@ -44,12 +33,6 @@ export class EnvironmentService {
     };
 
     return `terminal-cli@${version}`;
-  }
-
-  private optional(key: string): string | undefined {
-    const value = this.configService.get<string>(key);
-
-    return value === '' ? undefined : value;
   }
 
   constructor(

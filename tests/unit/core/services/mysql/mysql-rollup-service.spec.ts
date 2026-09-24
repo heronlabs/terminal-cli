@@ -2,9 +2,11 @@ import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
 import {rmSync, unlinkSync} from 'fs';
 import {pipeline} from 'stream/promises';
+import type {MockInstance} from 'vitest';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {MysqlRollupService} from '../../../../../src/core/services/mysql/mysql-rollup-service';
+import {MonitoringService} from '../../../../../src/infrastructure/monitoring/services/monitoring-service';
 import {
   createTestingModule,
   databaseConnection,
@@ -24,10 +26,12 @@ vi.mock('stream/promises', () => ({pipeline: vi.fn()}));
 
 describe('Given a service', () => {
   let service: MysqlRollupService;
+  let captureError: MockInstance<MonitoringService['captureError']>;
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(MysqlRollupService);
+    captureError = vi.spyOn(moduleRef.get(MonitoringService), 'captureError');
   });
 
   describe('Given mysql rollup', () => {
@@ -36,11 +40,7 @@ describe('Given a service', () => {
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(scriptLoaderService.load).toHaveBeenCalledWith(
         'mysql',
@@ -56,11 +56,7 @@ describe('Given a service', () => {
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(execSync).toHaveBeenCalledWith(LOADED_SCRIPT, {
         env: {
@@ -85,11 +81,7 @@ describe('Given a service', () => {
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: malicious,
-        latest: false,
-        local: true,
-      });
+      await service.run(malicious, true);
 
       expect(execSync).toHaveBeenCalledWith(
         LOADED_SCRIPT,
@@ -104,11 +96,7 @@ describe('Given a service', () => {
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(loggerService.log).toHaveBeenCalledWith(`Restored ${filename}`);
     });
@@ -118,11 +106,7 @@ describe('Given a service', () => {
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(s3Service.send).not.toHaveBeenCalled();
     });
@@ -133,11 +117,7 @@ describe('Given a service', () => {
       s3Service.send.mockResolvedValueOnce({Body: {}});
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(execSync).toHaveBeenCalledTimes(1);
     });
@@ -148,11 +128,7 @@ describe('Given a service', () => {
       s3Service.send.mockResolvedValueOnce({Body: {}});
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(unlinkSync).toHaveBeenCalledWith(filename);
     });
@@ -163,11 +139,7 @@ describe('Given a service', () => {
       s3Service.send.mockResolvedValueOnce({Body: {}});
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(loggerService.log).toHaveBeenCalledWith(
         'Deleted downloaded backup file',
@@ -179,11 +151,7 @@ describe('Given a service', () => {
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(unlinkSync).not.toHaveBeenCalled();
     });
@@ -195,11 +163,7 @@ describe('Given a service', () => {
         new Error(faker.lorem.word()),
       );
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(execSync).not.toHaveBeenCalled();
     });
@@ -210,11 +174,7 @@ describe('Given a service', () => {
 
       ssmConfigService.getOrThrow.mockRejectedValueOnce(new Error(message));
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(loggerService.error).toHaveBeenCalledWith(message);
     });
@@ -226,11 +186,7 @@ describe('Given a service', () => {
         throw new Error(faker.lorem.word());
       });
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(loggerService.error).toHaveBeenCalledWith(
         'mariadb restore failed',
@@ -242,11 +198,7 @@ describe('Given a service', () => {
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      const result = await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      const result = await service.run(filename, true);
 
       expect(result).toEqual({ok: true});
     });
@@ -258,46 +210,31 @@ describe('Given a service', () => {
         throw new Error(faker.lorem.word());
       });
 
-      const result = await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      const result = await service.run(filename, true);
 
-      expect(result).toEqual({
-        ok: false,
-        error: new Error('mariadb restore failed'),
-      });
+      expect(result).toEqual({ok: false});
     });
 
     it('Should return ok false when database resolution fails', async () => {
-      const error = new Error(faker.lorem.word());
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
-      ssmConfigService.getOrThrow.mockRejectedValueOnce(error);
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(
+        new Error(faker.lorem.word()),
+      );
 
-      const result = await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      const result = await service.run(filename, true);
 
-      expect(result).toEqual({ok: false, error});
+      expect(result).toEqual({ok: false});
     });
 
     it('Should return ok false when the download fails', async () => {
-      const error = new Error(faker.lorem.sentence());
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
-      s3Service.send.mockRejectedValueOnce(error);
+      s3Service.send.mockRejectedValueOnce(new Error(faker.lorem.sentence()));
 
-      const result = await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      const result = await service.run(filename, false);
 
-      expect(result).toEqual({ok: false, error});
+      expect(result).toEqual({ok: false});
     });
 
     it('Should log the download error message exactly when the download fails', async () => {
@@ -306,11 +243,7 @@ describe('Given a service', () => {
 
       s3Service.send.mockRejectedValueOnce(new Error(message));
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(loggerService.error).toHaveBeenCalledWith(message);
     });
@@ -320,11 +253,7 @@ describe('Given a service', () => {
 
       s3Service.send.mockRejectedValueOnce(new Error(faker.lorem.sentence()));
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(execSync).not.toHaveBeenCalled();
     });
@@ -334,11 +263,7 @@ describe('Given a service', () => {
 
       s3Service.send.mockRejectedValueOnce(new Error(faker.lorem.word()));
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(rmSync).toHaveBeenCalledWith(filename, {force: true});
     });
@@ -348,29 +273,20 @@ describe('Given a service', () => {
 
       s3Service.send.mockRejectedValueOnce(new Error(faker.lorem.word()));
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(unlinkSync).not.toHaveBeenCalled();
     });
 
     it('Should return ok false when writing the download fails', async () => {
-      const error = new Error(faker.lorem.word());
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       s3Service.send.mockResolvedValueOnce({Body: {}});
-      vi.mocked(pipeline).mockRejectedValueOnce(error);
+      vi.mocked(pipeline).mockRejectedValueOnce(new Error(faker.lorem.word()));
 
-      const result = await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      const result = await service.run(filename, false);
 
-      expect(result).toEqual({ok: false, error});
+      expect(result).toEqual({ok: false});
     });
 
     it('Should remove the partial file when writing the download fails', async () => {
@@ -379,11 +295,7 @@ describe('Given a service', () => {
       s3Service.send.mockResolvedValueOnce({Body: {}});
       vi.mocked(pipeline).mockRejectedValueOnce(new Error(faker.lorem.word()));
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(rmSync).toHaveBeenCalledWith(filename, {force: true});
     });
@@ -394,11 +306,7 @@ describe('Given a service', () => {
       s3Service.send.mockResolvedValueOnce({Body: {}});
       vi.mocked(pipeline).mockRejectedValueOnce(new Error(faker.lorem.word()));
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(execSync).not.toHaveBeenCalled();
     });
@@ -409,11 +317,7 @@ describe('Given a service', () => {
       s3Service.send.mockResolvedValueOnce({Body: {}});
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(rmSync).not.toHaveBeenCalled();
     });
@@ -426,16 +330,9 @@ describe('Given a service', () => {
         throw new Error(faker.lorem.word());
       });
 
-      const result = await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      const result = await service.run(filename, false);
 
-      expect(result).toEqual({
-        ok: false,
-        error: new Error('mariadb restore failed'),
-      });
+      expect(result).toEqual({ok: false});
     });
 
     it('Should delete the downloaded file when the remote restore fails', async () => {
@@ -446,11 +343,7 @@ describe('Given a service', () => {
         throw new Error(faker.lorem.word());
       });
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(unlinkSync).toHaveBeenCalledWith(filename);
     });
@@ -463,11 +356,7 @@ describe('Given a service', () => {
         throw new Error(faker.lorem.word());
       });
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: false,
-      });
+      await service.run(filename, false);
 
       expect(loggerService.log).toHaveBeenCalledWith(
         'Deleted downloaded backup file',
@@ -481,11 +370,7 @@ describe('Given a service', () => {
         throw new Error(faker.lorem.word());
       });
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(unlinkSync).not.toHaveBeenCalled();
     });
@@ -497,11 +382,7 @@ describe('Given a service', () => {
         throw new Error(faker.lorem.word());
       });
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(rmSync).not.toHaveBeenCalled();
     });
@@ -513,11 +394,7 @@ describe('Given a service', () => {
         throw new Error(faker.lorem.word());
       });
 
-      await service.run({
-        filename: filename,
-        latest: false,
-        local: true,
-      });
+      await service.run(filename, true);
 
       expect(loggerService.log).not.toHaveBeenCalledWith(
         'Deleted downloaded backup file',
@@ -525,69 +402,37 @@ describe('Given a service', () => {
     });
   });
 
-  describe('Given the rollup request', () => {
+  describe('Given monitoring', () => {
     const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
-    it('Should refuse a request with both filename and latest', async () => {
-      expect(await service.run({filename, latest: true, local: false})).toEqual(
-        {
-          ok: false,
-          error: new Error('Pass either --filename or --latest'),
-          expected: true,
-        },
+    it('Should capture the restore error', async () => {
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(filename, true);
+
+      expect(captureError).toHaveBeenCalledWith(
+        new Error('mariadb restore failed'),
       );
     });
 
-    it('Should refuse a request with neither filename nor latest', async () => {
-      expect(await service.run({latest: false, local: false})).toEqual({
-        ok: false,
-        error: new Error('Pass either --filename or --latest'),
-        expected: true,
-      });
+    it('Should capture the download error', async () => {
+      const error = new Error(faker.lorem.sentence());
+
+      s3Service.send.mockRejectedValueOnce(error);
+
+      await service.run(filename, false);
+
+      expect(captureError).toHaveBeenCalledWith(error);
     });
 
-    it('Should refuse latest with local', async () => {
-      expect(await service.run({latest: true, local: true})).toEqual({
-        ok: false,
-        error: new Error(
-          '--latest reads from S3 and cannot be combined with --local',
-        ),
-        expected: true,
-      });
-    });
-  });
+    it('Should not capture when the restore succeeds', async () => {
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
-  describe('Given latest', () => {
-    const key = `${databaseConnection.name}-2026-09-24T12-17-03Z.sql.gz`;
+      await service.run(filename, true);
 
-    it('Should restore the latest backup key', async () => {
-      s3Service.send.mockResolvedValueOnce({
-        Contents: [{Key: key, Size: 1, LastModified: faker.date.past()}],
-      });
-      s3Service.send.mockResolvedValueOnce({Body: {}});
-
-      await service.run({latest: true, local: false});
-
-      expect(s3Service.send.mock.calls[1]![0].input.Key).toBe(key);
-    });
-
-    it('Should fail when latest finds nothing', async () => {
-      s3Service.send.mockResolvedValueOnce({Contents: []});
-
-      expect(await service.run({latest: true, local: false})).toEqual({
-        ok: false,
-        error: new Error(`No backups found for ${databaseConnection.name}`),
-      });
-    });
-
-    it('Should log why latest found nothing', async () => {
-      s3Service.send.mockResolvedValueOnce({Contents: []});
-
-      await service.run({latest: true, local: false});
-
-      expect(loggerService.error).toHaveBeenCalledWith(
-        `No backups found for ${databaseConnection.name}`,
-      );
+      expect(captureError).not.toHaveBeenCalled();
     });
   });
 });
