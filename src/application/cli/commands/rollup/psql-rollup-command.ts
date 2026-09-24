@@ -29,10 +29,14 @@ export class PsqlRollupCommand extends CommandRunner {
   }
 
   public async run(_args: string[], options: RollupOptions) {
-    await this.psqlRollupService.run(
+    const result = await this.psqlRollupService.run(
       options[RollupOptionsKeys.FILENAME],
       options[RollupOptionsKeys.LOCAL] ?? false,
     );
+
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
   }
 
   constructor(private readonly psqlRollupService: PsqlRollupService) {

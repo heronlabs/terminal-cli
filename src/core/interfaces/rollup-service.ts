@@ -1,5 +1,5 @@
 import {Logger} from '@nestjs/common';
-import {unlinkSync} from 'fs';
+import {rmSync, unlinkSync} from 'fs';
 
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
@@ -16,8 +16,9 @@ export abstract class RollupService {
         await this.s3StorageService.download(filename);
 
       if (downloadError) {
+        rmSync(filename, {force: true});
         this.logger.error(downloadError.message);
-        return;
+        return {ok: false};
       }
     }
 
@@ -25,15 +26,24 @@ export abstract class RollupService {
 
     if (!result.ok) {
       this.logger.error(result.error.message);
-      return;
+      this.deleteDownloadedFile(filename, local);
+      return {ok: false};
     }
 
     this.logger.log(`Restored ${result.data.backupFileName}`);
 
-    if (!local) {
-      unlinkSync(filename);
-      this.logger.log('Deleted downloaded backup file');
+    this.deleteDownloadedFile(filename, local);
+
+    return {ok: true};
+  }
+
+  private deleteDownloadedFile(filename: string, local: boolean) {
+    if (local) {
+      return;
     }
+
+    unlinkSync(filename);
+    this.logger.log('Deleted downloaded backup file');
   }
 
   constructor(

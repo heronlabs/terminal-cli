@@ -26,7 +26,7 @@ export abstract class BackupService {
 
     if (!result.ok) {
       this.logger.error(result.error.message);
-      return;
+      return {ok: false};
     }
 
     if (local) {
@@ -37,13 +37,13 @@ export abstract class BackupService {
       result.data.backupFileName,
     );
 
-    if (uploadError) {
-      this.logger.error(uploadError.message);
-      return;
-    }
-
     unlinkSync(result.data.backupFileName);
     this.logger.log('Deleted local backup file');
+
+    if (uploadError) {
+      this.logger.error(uploadError.message);
+      return {ok: false};
+    }
 
     return {ok: true};
   }

@@ -1,5 +1,6 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {execSync} from 'child_process';
+import {rmSync} from 'fs';
 
 import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
 import {S3StorageService} from '../../../infrastructure/storage/services/s3-storage-service';
@@ -40,6 +41,8 @@ export class MysqlBackupService extends BackupService {
 
       return {ok: true as const, data: {backupFileName}};
     } catch {
+      rmSync(backupFileName, {force: true});
+
       return {ok: false as const, error: new Error('mariadb-dump failed')};
     }
   }

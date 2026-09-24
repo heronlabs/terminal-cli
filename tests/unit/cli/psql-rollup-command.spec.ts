@@ -1,6 +1,6 @@
 import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
-import {writeFileSync} from 'fs';
+import {pipeline} from 'stream/promises';
 
 import {cliModule} from '../../../src/application/cli/cli-module';
 import {PsqlRollupCommand} from '../../../src/application/cli/commands/rollup/psql-rollup-command';
@@ -12,7 +12,12 @@ import {
 } from '../../__mocks__/create-testing-module';
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
-vi.mock('fs', () => ({writeFileSync: vi.fn(), unlinkSync: vi.fn()}));
+vi.mock('fs', () => ({
+  createWriteStream: vi.fn(),
+  rmSync: vi.fn(),
+  unlinkSync: vi.fn(),
+}));
+vi.mock('stream/promises', () => ({pipeline: vi.fn()}));
 describe('Given a CLI command', () => {
   let command: PsqlRollupCommand;
 
@@ -23,19 +28,29 @@ describe('Given a CLI command', () => {
     command = moduleRef.get(PsqlRollupCommand);
   });
 
+  afterEach(() => {
+    process.exitCode = undefined;
+  });
+
   describe('Given command psql-rollup', () => {
     it('Should run the psql rollup command without logging an error', async () => {
-      s3Service.send.mockResolvedValueOnce({
-        Body: {
-          transformToByteArray: vi.fn().mockResolvedValueOnce(new Uint8Array()),
-        },
-      });
+      s3Service.send.mockResolvedValueOnce({Body: {}});
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
       expect(loggerService.error).toHaveBeenCalledTimes(0);
+    });
+
+    it('Should leave the exit code unset when the rollup succeeds', async () => {
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
+
+      expect(process.exitCode).toBeUndefined();
     });
 
     it('Should log error when s3Service throws', async () => {
@@ -48,18 +63,20 @@ describe('Given a CLI command', () => {
       expect(loggerService.error).toHaveBeenCalledWith(message);
     });
 
-    it('Should log error when writeFileSync throws', async () => {
-      s3Service.send.mockResolvedValueOnce({
-        Body: {
-          transformToByteArray: vi.fn().mockResolvedValueOnce(new Uint8Array()),
-        },
-      });
+    it('Should set exit code 1 when the download fails', async () => {
+      s3Service.send.mockRejectedValueOnce(new Error(faker.lorem.words()));
+
+      await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
+
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('Should log error when writing the download to disk fails', async () => {
+      s3Service.send.mockResolvedValueOnce({Body: {}});
 
       const message = faker.lorem.words();
 
-      vi.mocked(writeFileSync).mockImplementationOnce(() => {
-        throw new Error(message);
-      });
+      vi.mocked(pipeline).mockRejectedValueOnce(new Error(message));
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
@@ -67,11 +84,7 @@ describe('Given a CLI command', () => {
     });
 
     it('Should log error when execSync throws', async () => {
-      s3Service.send.mockResolvedValueOnce({
-        Body: {
-          transformToByteArray: vi.fn().mockResolvedValueOnce(new Uint8Array()),
-        },
-      });
+      s3Service.send.mockResolvedValueOnce({Body: {}});
 
       vi.mocked(execSync).mockImplementationOnce(() => {
         throw new Error('psql restore failed');
@@ -80,6 +93,18 @@ describe('Given a CLI command', () => {
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
       expect(loggerService.error).toHaveBeenCalledWith('psql restore failed');
+    });
+
+    it('Should set exit code 1 when the restore fails', async () => {
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error('psql restore failed');
+      });
+
+      await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
+
+      expect(process.exitCode).toBe(1);
     });
 
     it('Should log generic error when s3Service throws a non-Error during download', async () => {

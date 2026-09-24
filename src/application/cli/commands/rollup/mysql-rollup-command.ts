@@ -29,10 +29,14 @@ export class MysqlRollupCommand extends CommandRunner {
   }
 
   public async run(_args: string[], options: RollupOptions) {
-    await this.mysqlRollupService.run(
+    const result = await this.mysqlRollupService.run(
       options[RollupOptionsKeys.FILENAME],
       options[RollupOptionsKeys.LOCAL] ?? false,
     );
+
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
   }
 
   constructor(private readonly mysqlRollupService: MysqlRollupService) {

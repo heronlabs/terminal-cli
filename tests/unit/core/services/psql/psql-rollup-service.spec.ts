@@ -1,6 +1,7 @@
 import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
-import {unlinkSync} from 'fs';
+import {rmSync, unlinkSync} from 'fs';
+import {pipeline} from 'stream/promises';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {PsqlRollupService} from '../../../../../src/core/services/psql/psql-rollup-service';
@@ -15,10 +16,11 @@ import {
 
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
-  writeFileSync: vi.fn(),
-  readFileSync: vi.fn(),
+  createWriteStream: vi.fn(),
+  rmSync: vi.fn(),
   unlinkSync: vi.fn(),
 }));
+vi.mock('stream/promises', () => ({pipeline: vi.fn()}));
 
 describe('Given a service', () => {
   let service: PsqlRollupService;
@@ -108,11 +110,7 @@ describe('Given a service', () => {
     it('Should download from S3 then restore when local flag is false', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
-      s3Service.send.mockResolvedValueOnce({
-        Body: {
-          transformToByteArray: vi.fn().mockResolvedValueOnce(new Uint8Array()),
-        },
-      });
+      s3Service.send.mockResolvedValueOnce({Body: {}});
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(filename, false);
@@ -123,16 +121,22 @@ describe('Given a service', () => {
     it('Should delete the downloaded file after successful remote restore', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
-      s3Service.send.mockResolvedValueOnce({
-        Body: {
-          transformToByteArray: vi.fn().mockResolvedValueOnce(new Uint8Array()),
-        },
-      });
+      s3Service.send.mockResolvedValueOnce({Body: {}});
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(filename, false);
 
       expect(unlinkSync).toHaveBeenCalledWith(filename);
+    });
+
+    it('Should log the downloaded file deletion after successful remote restore', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(filename, false);
+
       expect(loggerService.log).toHaveBeenCalledWith(
         'Deleted downloaded backup file',
       );
@@ -181,6 +185,214 @@ describe('Given a service', () => {
       await service.run(filename, true);
 
       expect(loggerService.error).toHaveBeenCalledWith('psql restore failed');
+    });
+
+    it('Should return ok true when the restore succeeds', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      const result = await service.run(filename, true);
+
+      expect(result).toEqual({ok: true});
+    });
+
+    it('Should return ok false when the restore fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      const result = await service.run(filename, true);
+
+      expect(result).toEqual({ok: false});
+    });
+
+    it('Should return ok false when database resolution fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      ssmConfigService.getOrThrow.mockRejectedValueOnce(
+        new Error(faker.lorem.word()),
+      );
+
+      const result = await service.run(filename, true);
+
+      expect(result).toEqual({ok: false});
+    });
+
+    it('Should return ok false when the download fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockRejectedValueOnce(new Error(faker.lorem.sentence()));
+
+      const result = await service.run(filename, false);
+
+      expect(result).toEqual({ok: false});
+    });
+
+    it('Should log the download error message exactly when the download fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+      const message = faker.lorem.sentence();
+
+      s3Service.send.mockRejectedValueOnce(new Error(message));
+
+      await service.run(filename, false);
+
+      expect(loggerService.error).toHaveBeenCalledWith(message);
+    });
+
+    it('Should not restore when the download fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockRejectedValueOnce(new Error(faker.lorem.sentence()));
+
+      await service.run(filename, false);
+
+      expect(execSync).not.toHaveBeenCalled();
+    });
+
+    it('Should remove the partial file when the S3 request fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockRejectedValueOnce(new Error(faker.lorem.word()));
+
+      await service.run(filename, false);
+
+      expect(rmSync).toHaveBeenCalledWith(filename, {force: true});
+    });
+
+    it('Should not delete a downloaded file when the S3 request fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockRejectedValueOnce(new Error(faker.lorem.word()));
+
+      await service.run(filename, false);
+
+      expect(unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it('Should return ok false when writing the download fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+      vi.mocked(pipeline).mockRejectedValueOnce(new Error(faker.lorem.word()));
+
+      const result = await service.run(filename, false);
+
+      expect(result).toEqual({ok: false});
+    });
+
+    it('Should remove the partial file when writing the download fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+      vi.mocked(pipeline).mockRejectedValueOnce(new Error(faker.lorem.word()));
+
+      await service.run(filename, false);
+
+      expect(rmSync).toHaveBeenCalledWith(filename, {force: true});
+    });
+
+    it('Should not restore when writing the download fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+      vi.mocked(pipeline).mockRejectedValueOnce(new Error(faker.lorem.word()));
+
+      await service.run(filename, false);
+
+      expect(execSync).not.toHaveBeenCalled();
+    });
+
+    it('Should not remove any file when the download succeeds', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(filename, false);
+
+      expect(rmSync).not.toHaveBeenCalled();
+    });
+
+    it('Should return ok false when the remote restore fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      const result = await service.run(filename, false);
+
+      expect(result).toEqual({ok: false});
+    });
+
+    it('Should delete the downloaded file when the remote restore fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(filename, false);
+
+      expect(unlinkSync).toHaveBeenCalledWith(filename);
+    });
+
+    it('Should log the downloaded file deletion when the remote restore fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      s3Service.send.mockResolvedValueOnce({Body: {}});
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(filename, false);
+
+      expect(loggerService.log).toHaveBeenCalledWith(
+        'Deleted downloaded backup file',
+      );
+    });
+
+    it('Should not delete the file when the local restore fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(filename, true);
+
+      expect(unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it('Should not remove any file when the local restore fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(filename, true);
+
+      expect(rmSync).not.toHaveBeenCalled();
+    });
+
+    it('Should not log the downloaded file deletion when the local restore fails', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(filename, true);
+
+      expect(loggerService.log).not.toHaveBeenCalledWith(
+        'Deleted downloaded backup file',
+      );
     });
   });
 });
