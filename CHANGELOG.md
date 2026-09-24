@@ -1,3 +1,9 @@
+## v3.0.1 (2026-09-24)
+
+### Bug Fixes
+
+* fix: exit 1 on backup failure, stream s3 transfers (#48) (d11578fbdc5434c3faf71df632be501b75aa69b2)
+
 ## v3.0.0 (2026-09-24)
 
 ### ⚠ BREAKING CHANGES
