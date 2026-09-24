@@ -1,3 +1,13 @@
+## v3.0.0 (2026-09-24)
+
+### ⚠ BREAKING CHANGES
+
+* other!: remove easypanel-backup and easypanel-rollup (#47) (a657d42d3100e60e4577947534080970b365751b)
+
+### Miscellaneous Chores
+
+* other!: remove easypanel-backup and easypanel-rollup (#47) (a657d42d3100e60e4577947534080970b365751b)
+
 ## v2.4.0 (2026-09-18)
 
 ### Features
