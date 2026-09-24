@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 
 import {faker} from '@faker-js/faker';
 
-import {cliModule} from '../../../src/application/cli/cli-module';
+import {CliModule} from '../../../src/application/cli/cli-module';
 import {VersionCommand} from '../../../src/application/cli/commands/version/version-command';
 import {
   createTestingModule,
@@ -15,12 +15,14 @@ describe('Given a CLI command', () => {
   let command: VersionCommand;
 
   beforeEach(async () => {
-    const moduleRef = await createTestingModule(cliModule).compile();
+    const moduleRef = await createTestingModule({
+      imports: [CliModule],
+    }).compile();
     command = moduleRef.get(VersionCommand);
   });
 
   describe('Given command version', () => {
-    it('Should log the current version using the exact "Current Version: <version>" format', async () => {
+    it('Should log the current version with the version field', async () => {
       const version = faker.string.numeric(1);
 
       vi.mocked(readFileSync).mockReturnValueOnce(JSON.stringify({version}));
@@ -28,7 +30,9 @@ describe('Given a CLI command', () => {
       await command.run();
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        `Current Version: ${version}`,
+        {version},
+        'Current version',
+        VersionCommand.name,
       );
     });
 

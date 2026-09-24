@@ -6,6 +6,8 @@ import {Command, CommandRunner} from 'nest-commander';
 
 @Command({name: 'version', description: 'Print current version'})
 export class VersionCommand extends CommandRunner {
+  private readonly logger = new Logger(VersionCommand.name);
+
   public async run(): Promise<void> {
     const path = join(__dirname, '../../../../../../package.json');
 
@@ -13,10 +15,6 @@ export class VersionCommand extends CommandRunner {
       version: string;
     };
 
-    this.logger.log(`Current Version: ${version}`);
-  }
-
-  constructor(private readonly logger: Logger) {
-    super();
+    this.logger.log({version}, 'Current version');
   }
 }

@@ -4,7 +4,7 @@ import {createReadStream, createWriteStream} from 'fs';
 import {pipeline} from 'stream/promises';
 
 import {S3StorageService} from '../../../../../src/infrastructure/storage/services/s3-storage-service';
-import {storageModule} from '../../../../../src/infrastructure/storage/storage-module';
+import {StorageModule} from '../../../../../src/infrastructure/storage/storage-module';
 import {
   createTestingModule,
   loggerService,
@@ -27,7 +27,9 @@ describe('Given a service', () => {
   let service: S3StorageService;
 
   beforeEach(async () => {
-    const moduleRef = await createTestingModule(storageModule).compile();
+    const moduleRef = await createTestingModule({
+      imports: [StorageModule],
+    }).compile();
     service = moduleRef.get(S3StorageService);
   });
 
@@ -80,12 +82,16 @@ describe('Given a service', () => {
       );
     });
 
-    it('Should log the exact upload success message', async () => {
+    it('Should log the upload with the bucket and key', async () => {
       const filePath = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       await service.upload(filePath);
 
-      expect(loggerService.log).toHaveBeenCalledWith('Uploaded file to S3');
+      expect(loggerService.log).toHaveBeenCalledWith(
+        {bucket: 'AWS_S3_BUCKET_NAME', key: filePath},
+        'Uploaded file to S3',
+        S3StorageService.name,
+      );
     });
 
     it('Should return ok true when upload succeeds', async () => {
@@ -103,7 +109,11 @@ describe('Given a service', () => {
 
       await service.upload(filePath);
 
-      expect(loggerService.log).not.toHaveBeenCalled();
+      expect(loggerService.log).not.toHaveBeenCalledWith(
+        expect.anything(),
+        'Uploaded file to S3',
+        S3StorageService.name,
+      );
     });
 
     it('Should return ok false with the original error when the upload rejects with an Error', async () => {
@@ -150,14 +160,18 @@ describe('Given a service', () => {
       );
     });
 
-    it('Should log the exact download success message', async () => {
+    it('Should log the download with the bucket and key', async () => {
       const key = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       s3Service.send.mockResolvedValueOnce({Body: {}});
 
       await service.download(key);
 
-      expect(loggerService.log).toHaveBeenCalledWith('Downloaded file from S3');
+      expect(loggerService.log).toHaveBeenCalledWith(
+        {bucket: 'AWS_S3_BUCKET_NAME', key},
+        'Downloaded file from S3',
+        S3StorageService.name,
+      );
     });
 
     it('Should return ok true when download succeeds', async () => {
@@ -216,7 +230,11 @@ describe('Given a service', () => {
 
       await service.download(key);
 
-      expect(loggerService.log).not.toHaveBeenCalled();
+      expect(loggerService.log).not.toHaveBeenCalledWith(
+        expect.anything(),
+        'Downloaded file from S3',
+        S3StorageService.name,
+      );
     });
 
     it('Should return ok false with the original error when send rejects with an Error', async () => {

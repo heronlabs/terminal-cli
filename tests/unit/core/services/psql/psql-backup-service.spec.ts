@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/node';
 import {execSync} from 'child_process';
 import {rmSync, unlinkSync} from 'fs';
 
-import {cliModule} from '../../../../../src/application/cli/cli-module';
+import {CliModule} from '../../../../../src/application/cli/cli-module';
 import {PsqlBackupService} from '../../../../../src/core/services/psql/psql-backup-service';
 import {
   createTestingModule,
@@ -35,7 +35,9 @@ describe('Given a service', () => {
   let service: PsqlBackupService;
 
   beforeEach(async () => {
-    const moduleRef = await createTestingModule(cliModule).compile();
+    const moduleRef = await createTestingModule({
+      imports: [CliModule],
+    }).compile();
     service = moduleRef.get(PsqlBackupService);
   });
 
@@ -96,7 +98,7 @@ describe('Given a service', () => {
       );
     });
 
-    it('Should log the exact success message including the filename', async () => {
+    it('Should log the dump completion with the database and filename', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -104,7 +106,9 @@ describe('Given a service', () => {
       await service.run(true, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        `Backup PostgreSQL database successfully! Filename: ${filename}`,
+        {database: databaseConnection.name, filename},
+        'Backup dump completed',
+        PsqlBackupService.name,
       );
     });
 
@@ -114,11 +118,16 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        expect.stringMatching(
-          new RegExp(
-            `^Backup PostgreSQL database successfully! Filename: ${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
+        {
+          database: databaseConnection.name,
+          filename: expect.stringMatching(
+            new RegExp(
+              `^${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
+            ),
           ),
-        ),
+        },
+        'Backup dump completed',
+        PsqlBackupService.name,
       );
     });
 
@@ -174,7 +183,9 @@ describe('Given a service', () => {
       await service.run(false, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
+        {filename},
         'Deleted local backup file',
+        PsqlBackupService.name,
       );
     });
 
@@ -208,14 +219,18 @@ describe('Given a service', () => {
       expect(execSync).not.toHaveBeenCalled();
     });
 
-    it('Should log the database resolution error message exactly', async () => {
+    it('Should log the database resolution error as a failed dump', async () => {
       const message = faker.lorem.sentence();
 
       ssmConfigService.getOrThrow.mockRejectedValueOnce(new Error(message));
 
       await service.run(true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {err: new Error(message)},
+        'Backup dump failed',
+        PsqlBackupService.name,
+      );
     });
 
     it('Should return ok false when dump fails', async () => {
@@ -291,7 +306,7 @@ describe('Given a service', () => {
       expect(result).toEqual({ok: false});
     });
 
-    it('Should log the upload error message exactly when the upload fails', async () => {
+    it('Should log the upload error with the filename when the upload fails', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
       const message = faker.lorem.sentence();
 
@@ -300,7 +315,11 @@ describe('Given a service', () => {
 
       await service.run(false, filename);
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {err: new Error(message), filename},
+        'Backup upload failed',
+        PsqlBackupService.name,
+      );
     });
 
     it('Should delete the local backup file when the upload fails', async () => {
@@ -323,7 +342,9 @@ describe('Given a service', () => {
       await service.run(false, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
+        {filename},
         'Deleted local backup file',
+        PsqlBackupService.name,
       );
     });
 
@@ -335,7 +356,9 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        new Error('pg_dump failed'),
+        {err: new Error('pg_dump failed')},
+        'Backup dump failed',
+        PsqlBackupService.name,
       );
     });
   });

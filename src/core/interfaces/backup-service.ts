@@ -5,9 +5,9 @@ import {DateTime} from 'luxon';
 
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
-const monitorSlug = 'terminal-cli-backup';
-
 export abstract class BackupService {
+  protected readonly logger = new Logger(this.constructor.name);
+
   protected abstract dump(
     filename?: string,
   ): Promise<
@@ -25,6 +25,8 @@ export abstract class BackupService {
   }
 
   public async run(local: boolean, filename?: string) {
+    const monitorSlug = 'terminal-cli-backup';
+
     const checkInId = Sentry.captureCheckIn({
       monitorSlug,
       status: 'in_progress',
@@ -45,7 +47,7 @@ export abstract class BackupService {
     const result = await this.dump(filename);
 
     if (!result.ok) {
-      this.logger.error(result.error);
+      this.logger.error({err: result.error}, 'Backup dump failed');
       return {ok: false};
     }
 
@@ -58,18 +60,21 @@ export abstract class BackupService {
     );
 
     unlinkSync(result.data.backupFileName);
-    this.logger.log('Deleted local backup file');
+    this.logger.log(
+      {filename: result.data.backupFileName},
+      'Deleted local backup file',
+    );
 
     if (uploadError) {
-      this.logger.error(uploadError);
+      this.logger.error(
+        {err: uploadError, filename: result.data.backupFileName},
+        'Backup upload failed',
+      );
       return {ok: false};
     }
 
     return {ok: true};
   }
 
-  constructor(
-    protected readonly logger: Logger,
-    protected readonly s3StorageService: S3StorageService,
-  ) {}
+  constructor(protected readonly s3StorageService: S3StorageService) {}
 }

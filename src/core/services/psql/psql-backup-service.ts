@@ -1,4 +1,4 @@
-import {Injectable, Logger} from '@nestjs/common';
+import {Injectable} from '@nestjs/common';
 import {execSync} from 'child_process';
 import {rmSync} from 'fs';
 
@@ -36,7 +36,8 @@ export class PsqlBackupService extends BackupService {
       });
 
       this.logger.log(
-        `Backup PostgreSQL database successfully! Filename: ${backupFileName}`,
+        {database: name, filename: backupFileName},
+        'Backup dump completed',
       );
 
       return {ok: true as const, data: {backupFileName}};
@@ -48,11 +49,10 @@ export class PsqlBackupService extends BackupService {
   }
 
   constructor(
-    protected readonly logger: Logger,
     private readonly environmentService: EnvironmentService,
     protected readonly s3StorageService: S3StorageService,
     private readonly scriptLoader: ScriptLoaderService,
   ) {
-    super(logger, s3StorageService);
+    super(s3StorageService);
   }
 }

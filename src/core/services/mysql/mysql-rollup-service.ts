@@ -1,4 +1,4 @@
-import {Injectable, Logger} from '@nestjs/common';
+import {Injectable} from '@nestjs/common';
 import {execSync} from 'child_process';
 
 import {EnvironmentService} from '../../../infrastructure/environment/services/environment-service';
@@ -39,11 +39,10 @@ export class MysqlRollupService extends RollupService {
   }
 
   constructor(
-    protected readonly logger: Logger,
     private readonly environmentService: EnvironmentService,
     protected readonly s3StorageService: S3StorageService,
     private readonly scriptLoader: ScriptLoaderService,
   ) {
-    super(logger, s3StorageService);
+    super(s3StorageService);
   }
 }

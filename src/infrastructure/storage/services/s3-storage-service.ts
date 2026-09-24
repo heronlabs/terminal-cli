@@ -9,13 +9,17 @@ import {EnvironmentService} from '../../environment/services/environment-service
 
 @Injectable()
 export class S3StorageService {
-  public async upload(filePath: string, key?: string) {
+  private readonly logger = new Logger(S3StorageService.name);
+
+  public async upload(filePath: string, key = filePath) {
     try {
+      const bucket = this.environmentService.storage.bucketName;
+
       const upload = new Upload({
         client: this.s3,
         params: {
-          Bucket: this.environmentService.storage.bucketName,
-          Key: key ?? filePath,
+          Bucket: bucket,
+          Key: key,
           Body: createReadStream(filePath),
           ContentType: 'application/octet-stream',
         },
@@ -23,7 +27,7 @@ export class S3StorageService {
 
       await upload.done();
 
-      this.logger.log('Uploaded file to S3');
+      this.logger.log({bucket, key}, 'Uploaded file to S3');
 
       return {ok: true};
     } catch (error) {
@@ -37,16 +41,15 @@ export class S3StorageService {
 
   public async download(key: string) {
     try {
-      const command = new GetObjectCommand({
-        Bucket: this.environmentService.storage.bucketName,
-        Key: key,
-      });
+      const bucket = this.environmentService.storage.bucketName;
+
+      const command = new GetObjectCommand({Bucket: bucket, Key: key});
 
       const response = await this.s3.send(command);
 
       await pipeline(response.Body as Readable, createWriteStream(key));
 
-      this.logger.log('Downloaded file from S3');
+      this.logger.log({bucket, key}, 'Downloaded file from S3');
 
       return {ok: true};
     } catch (error) {
@@ -59,7 +62,6 @@ export class S3StorageService {
   }
 
   constructor(
-    private readonly logger: Logger,
     private readonly environmentService: EnvironmentService,
     private readonly s3: S3Client,
   ) {}
