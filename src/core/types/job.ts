@@ -1,4 +1,4 @@
-export type JobName = 'backup' | 'rollup' | 'backups-list';
+export type JobName = 'backup' | 'rollup';
 
 export type JobTrigger = 'schedule' | 'manual';
 

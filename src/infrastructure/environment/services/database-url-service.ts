@@ -1,14 +1,6 @@
 import {ConfigService} from '@heronlabs/env-ssm';
 import {Injectable} from '@nestjs/common';
 
-export type DatabaseConnection = {
-  host: string;
-  port: string;
-  name: string;
-  user: string;
-  password: string;
-};
-
 @Injectable()
 export class DatabaseUrlService {
   constructor(private readonly ssmConfigService: ConfigService) {}
@@ -63,7 +55,7 @@ export class DatabaseUrlService {
 
       const name = this.stripNameSuffix(rawName);
 
-      const connection: DatabaseConnection = {host, port, name, user, password};
+      const connection = {host, port, name, user, password};
 
       const missing = (['host', 'name', 'user'] as const).filter(
         field => connection[field] === '',

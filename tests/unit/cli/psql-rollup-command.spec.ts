@@ -49,7 +49,6 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(loggerService.error).toHaveBeenCalledTimes(0);
@@ -62,7 +61,6 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(process.exitCode).toBeUndefined();
@@ -75,7 +73,6 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(loggerService.error).toHaveBeenCalledWith(message);
@@ -86,7 +83,6 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(process.exitCode).toBe(1);
@@ -101,7 +97,6 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(loggerService.error).toHaveBeenCalledWith(message);
@@ -116,7 +111,6 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(loggerService.error).toHaveBeenCalledWith('psql restore failed');
@@ -131,7 +125,6 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(process.exitCode).toBe(1);
@@ -144,7 +137,6 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(loggerService.error).toHaveBeenCalledWith(
@@ -164,7 +156,6 @@ describe('Given a CLI command', () => {
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
         [RollupOptionsKeys.LOCAL]: true,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(loggerService.error).toHaveBeenCalledTimes(0);
@@ -185,27 +176,28 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(process.exitCode).toBe(1);
     });
 
-    it('Should set exit code 1 when the database is not empty', async () => {
-      vi.mocked(execSync).mockReturnValueOnce('5\n');
-
-      await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
+    it('Should set exit code 1 when latest is combined with local', async () => {
+      await command.run([], {
+        [RollupOptionsKeys.LATEST]: true,
+        [RollupOptionsKeys.LOCAL]: true,
+      });
 
       expect(process.exitCode).toBe(1);
     });
 
-    it('Should warn why a non-empty database was refused', async () => {
-      vi.mocked(execSync).mockReturnValueOnce('5\n');
-
-      await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
+    it('Should warn why latest with local was refused', async () => {
+      await command.run([], {
+        [RollupOptionsKeys.LATEST]: true,
+        [RollupOptionsKeys.LOCAL]: true,
+      });
 
       expect(loggerService.warn).toHaveBeenCalledWith(
-        'Target database is not empty (5 tables). Restore into an empty database or pass --force',
+        '--latest reads from S3 and cannot be combined with --local',
       );
     });
 
@@ -220,11 +212,10 @@ describe('Given a CLI command', () => {
         filename: undefined,
         latest: true,
         local: false,
-        force: false,
       });
     });
 
-    it('Should pass force to the service', async () => {
+    it('Should pass filename and local to the service', async () => {
       const run = vi
         .spyOn(rollupService, 'run')
         .mockResolvedValueOnce({ok: true});
@@ -232,14 +223,12 @@ describe('Given a CLI command', () => {
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
         [RollupOptionsKeys.LOCAL]: true,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(run).toHaveBeenCalledWith({
         filename,
         latest: false,
         local: true,
-        force: true,
       });
     });
 
@@ -254,16 +243,11 @@ describe('Given a CLI command', () => {
         filename: undefined,
         latest: false,
         local: false,
-        force: false,
       });
     });
 
     it('Should return true when parsing latest option', () => {
       expect(command.parseLatest()).toBe(true);
-    });
-
-    it('Should return true when parsing force option', () => {
-      expect(command.parseForce()).toBe(true);
     });
 
     it('Should run as a manual, locked rollup job', async () => {
@@ -272,7 +256,6 @@ describe('Given a CLI command', () => {
 
       await command.run([], {
         [RollupOptionsKeys.FILENAME]: filename,
-        [RollupOptionsKeys.FORCE]: true,
       });
 
       expect(run).toHaveBeenCalledWith(

@@ -34,7 +34,7 @@ Scheduled, type-safe database backups with a single binary:
 - **S3 or local** — push backups to S3 by default, or keep them on disk with `--local` (handy for seeding).
 - **Scheduler built in** — `hcli run` backs up on start and on `BACKUP_SCHEDULE`; one image plus `easypanel/` inline-Dockerfile templates deploy it.
 - **Observable** — optional Sentry: logs, errors and a cron monitor of the scheduled backup, with credentials redacted.
-- **Safe restores** — `backups-list`, `--latest`, a shared job lock, and a refusal to restore into a database that already has tables.
+- **Safe restores** — `--latest` picks the newest backup of the exact database, and a shared job lock keeps backups and rollups from overlapping.
 - **100% tested** — v8 coverage + Stryker mutation testing, both at 100% thresholds.
 
 ## Install
@@ -99,7 +99,6 @@ pnpm dep:cruise    # architecture check
 | `hcli psql-rollup --filename <file>` / `--latest` | Restore a PostgreSQL database from a backup |
 | `hcli mysql-backup` | Back up a MySQL database (S3 by default) |
 | `hcli mysql-rollup --filename <file>` / `--latest` | Restore a MySQL database from a backup |
-| `hcli backups-list` | List the configured database's backups in S3, newest first, with date and size |
 | `hcli version` | Print the current version |
 
 Every backup and rollup command exits with code `1` when it fails — the
@@ -111,10 +110,10 @@ file, or the partial file a failed download left; with `--local` the file is
 your input and is never deleted. S3 transfers are streamed, so backup size is
 not bounded by memory.
 
-A rollup counts the tables of the target database first and refuses (exit `1`,
-a warning, no Sentry issue) when it is not empty, unless `--force` is passed.
-Backups and rollups share a lock file: a manual command that finds another
-backup or rollup running exits `1`; a scheduled backup is skipped with a warning.
+A rollup refuses (exit `1`, a warning, no Sentry issue) a request with both or
+neither of `--filename` and `--latest`, or `--latest` with `--local`. Backups
+and rollups share a lock file: a manual command that finds another backup or
+rollup running exits `1`; a scheduled backup is skipped with a warning.
 `hcli run` exits `1` when `BACKUP_ENGINE` is missing or `BACKUP_SCHEDULE` is not
 a valid cron pattern.
 
@@ -125,7 +124,6 @@ a valid cron pattern.
 | `-f, --filename <name>` | backups, rollups | Backup filename. Backups default to `<database>-<timestamp>.sql.gz`; a rollup takes either it or `--latest`. |
 | `--local` | backups, rollups | Read/write the backup on the local filesystem instead of S3. |
 | `--latest` | rollups | Restore the newest backup of the configured database from S3. Not combinable with `--filename` or `--local`. |
-| `--force` | rollups | Restore even when the target database already has tables. |
 
 Examples:
 
@@ -142,8 +140,7 @@ hcli psql-rollup --local --filename seed.sql.gz
 # Restore from S3
 hcli mysql-rollup --filename mydb-2026-03-05T12-00-00Z.sql.gz
 
-# List the backups in S3 and restore the newest one into an empty database
-hcli backups-list
+# Restore the newest backup of the configured database from S3
 hcli psql-rollup --latest
 ```
 
@@ -174,7 +171,7 @@ failure.
 
 With `SENTRY_DSN` set, every log line of every command goes to Sentry Logs and
 every unexpected failure becomes a Sentry issue, all carrying the attributes
-`command`, `job` (`backup` | `rollup` | `backups-list`), `job.id` and `trigger`
+`command`, `job` (`backup` | `rollup`), `job.id` and `trigger`
 (`schedule` | `manual`). Connection-URL credentials, `PGPASSWORD=`, `MYSQL_PWD=`,
 `AWS_SECRET_ACCESS_KEY=` and `AKIA…` keys are redacted before anything is sent.
 Only the scheduled backup of `hcli run` checks in to the monitor
@@ -189,7 +186,7 @@ src/
 ├── application/          # CLI surface (nest-commander)
 │   └── cli/
 │       ├── cli-module.ts
-│       └── commands/     # backup/, rollup/, backups-list/, run/, version/ + option types
+│       └── commands/     # backup/, rollup/, run/, version/ + option types
 ├── core/                 # domain logic
 │   ├── interfaces/       # BackupService / RollupService abstract base services
 │   ├── types/            # job result/options types

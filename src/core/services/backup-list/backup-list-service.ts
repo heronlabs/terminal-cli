@@ -8,7 +8,7 @@ const BACKUP_SUFFIX_FORMAT = "yyyy-MM-dd'T'HH-mm-ss'Z.sql.gz'";
 
 @Injectable()
 export class BackupListService {
-  async list() {
+  async latest() {
     const db = await this.environmentService.database();
 
     if (!db.ok) {
@@ -23,31 +23,17 @@ export class BackupListService {
       return result;
     }
 
-    return {
-      ok: true as const,
-      backups: result.objects.filter(
-        ({key}) =>
-          key.startsWith(prefix) &&
-          DateTime.fromFormat(key.slice(prefix.length), BACKUP_SUFFIX_FORMAT)
-            .isValid,
-      ),
-      name,
-    };
-  }
-
-  async latest() {
-    const result = await this.list();
-
-    if (!result.ok) {
-      return result;
-    }
-
-    const [newest] = result.backups;
+    const newest = result.objects.find(
+      ({key}) =>
+        key.startsWith(prefix) &&
+        DateTime.fromFormat(key.slice(prefix.length), BACKUP_SUFFIX_FORMAT)
+          .isValid,
+    );
 
     if (!newest) {
       return {
         ok: false as const,
-        error: new Error(`No backups found for ${result.name}`),
+        error: new Error(`No backups found for ${name}`),
       };
     }
 

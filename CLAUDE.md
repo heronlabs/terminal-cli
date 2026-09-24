@@ -26,11 +26,10 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 
 ## CLI Commands (`hcli`)
 
-`run`, `psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`,
-`backups-list`, `version`.
+`run`, `psql-backup`, `psql-rollup`, `mysql-backup`, `mysql-rollup`, `version`.
 Flags: `-f, --filename <name>`, `--local` (filesystem instead of S3); rollups
 also take `--latest` (newest S3 backup of the database; excludes `--filename`
-and `--local`) and `--force` (restore into a database that has tables).
+and `--local`).
 
 `hcli run` schedules the backup of `BACKUP_ENGINE` with `croner` on
 `BACKUP_SCHEDULE` (UTC, no overlap), backs up on start unless
@@ -39,9 +38,8 @@ a missing engine or invalid schedule exits 1. Every command goes through
 `JobRunnerService`: a `job.id`, the job attributes in an `AsyncLocalStorage`, the
 shared lock file (`<tmpdir>/hcli.lock`, stale-pid recovery) for backups and
 rollups, the Sentry check-in of the scheduled backup, and the error capture. A
-rollup refuses a non-empty target database (table count via
-`{psql,mysql}-count-tables.sh`) unless `--force`: exit 1, a warning, no Sentry
-issue.
+rollup with both or neither of `--filename`/`--latest`, or `--latest` with
+`--local`, is refused: exit 1, a warning, no Sentry issue.
 
 Every backup and rollup command failure (database resolution, dump/restore,
 S3 upload/download) exits 1: `BackupService.run` / `RollupService.run` return
@@ -61,8 +59,8 @@ never deletes the input file. S3 transfers stream
 | Path | Role |
 |---|---|
 | `src/main.ts` | Bootstrap — `CommandFactory.runApplication(CliModule)` |
-| `src/application/cli/` | `cli-module.ts` + `commands/{backup,rollup,backups-list,run,version}/` (nest-commander commands + option types) |
-| `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration, rollup request validation + empty-database guard) |
+| `src/application/cli/` | `cli-module.ts` + `commands/{backup,rollup,run,version}/` (nest-commander commands + option types) |
+| `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration, rollup request validation) |
 | `src/core/services/` | One folder per engine — `{mysql,psql}/` with its backup + rollup services and `.sh` scripts; `job/` (lock + runner), `backup-list/`, `schedule/` (croner); shared `script-loader-service.ts` at the root |
 | `src/core/types/` | `JobResult`, `JobOptions`, `JobOutcome` |
 | `src/infrastructure/environment/` | `EnvironmentService` — typed wrapper over `@nestjs/config` (database, storage, monitoring, schedule, release) |

@@ -36,14 +36,6 @@ export class PsqlRollupCommand extends CommandRunner {
     return true;
   }
 
-  @Option({
-    flags: `--${RollupOptionsKeys.FORCE}`,
-    description: 'Restore even when the target database already has tables',
-  })
-  parseForce(): boolean {
-    return true;
-  }
-
   public async run(_args: string[], options: RollupOptions) {
     const outcome = await this.jobRunner.run(
       {command: 'psql-rollup', job: 'rollup', trigger: 'manual', lock: true},
@@ -52,7 +44,6 @@ export class PsqlRollupCommand extends CommandRunner {
           filename: options[RollupOptionsKeys.FILENAME],
           latest: options[RollupOptionsKeys.LATEST] ?? false,
           local: options[RollupOptionsKeys.LOCAL] ?? false,
-          force: options[RollupOptionsKeys.FORCE] ?? false,
         }),
     );
 

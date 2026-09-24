@@ -34,8 +34,8 @@ mariadb_scalar() {
 log "Preparing a gzipped seed for rollup"
 gzip -c "$SCRIPT_DIR/seed.sql" >"$SEED_GZ"
 
-log "Rolling up the seed via hcli mysql-rollup --local --force"
-$HCLI mysql-rollup --local --force -f "$SEED_GZ"
+log "Rolling up the seed via hcli mysql-rollup --local"
+$HCLI mysql-rollup --local -f "$SEED_GZ"
 
 log "Asserting the seed restored 3 rows"
 seed_count="$(mariadb_scalar 'SELECT count(*) FROM users;')"
@@ -56,12 +56,6 @@ if [ ! -s "$DUMP_GZ" ]; then
 fi
 gzip -t "$DUMP_GZ" || fail "backup file $DUMP_GZ is not a valid gzip"
 echo "ok: backup file is a non-empty valid gzip"
-
-log "Asserting hcli mysql-rollup refuses a non-empty database"
-if $HCLI mysql-rollup --local -f "$DUMP_GZ"; then
-  fail "mysql-rollup restored into a non-empty database"
-fi
-echo "ok: mysql-rollup refused a non-empty database"
 
 log "Wiping the database (guards against a no-op restore)"
 mariadb -u "$DB_USER" -h "$DB_HOST" -P "$DB_PORT" \

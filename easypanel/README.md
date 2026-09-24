@@ -68,12 +68,10 @@ these per-deployment inline Dockerfiles.
 
 ```
 EasyPanel → client project → terminal-cli → Console
-hcli backups-list
-# stop the app, point DATABASE_URL at an empty database
+# stop the app
 hcli psql-rollup --latest
 ```
 
-`backups-list` prints the database's backups in S3, newest first. A rollup
-refuses a database that already has tables unless `--force` is passed; use
+`--latest` restores the newest backup of the configured database from S3; use
 `--filename <key>` instead of `--latest` to restore an older backup (use
 `mysql-rollup` for MySQL).

@@ -29,8 +29,8 @@ psql_scalar() {
 log "Preparing a gzipped seed for rollup"
 gzip -c "$SCRIPT_DIR/seed.sql" >"$SEED_GZ"
 
-log "Rolling up the seed via hcli psql-rollup --local --force"
-$HCLI psql-rollup --local --force -f "$SEED_GZ"
+log "Rolling up the seed via hcli psql-rollup --local"
+$HCLI psql-rollup --local -f "$SEED_GZ"
 
 log "Asserting the seed restored 3 rows"
 seed_count="$(psql_scalar 'SELECT count(*) FROM users;')"
@@ -51,12 +51,6 @@ if [ ! -s "$DUMP_GZ" ]; then
 fi
 gzip -t "$DUMP_GZ" || fail "backup file $DUMP_GZ is not a valid gzip"
 echo "ok: backup file is a non-empty valid gzip"
-
-log "Asserting hcli psql-rollup refuses a non-empty database"
-if $HCLI psql-rollup --local -f "$DUMP_GZ"; then
-  fail "psql-rollup restored into a non-empty database"
-fi
-echo "ok: psql-rollup refused a non-empty database"
 
 log "Wiping the schema (guards against a no-op restore)"
 psql --quiet -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'

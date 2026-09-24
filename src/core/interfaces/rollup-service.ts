@@ -9,7 +9,6 @@ export type RollupRequest = {
   filename?: string;
   latest: boolean;
   local: boolean;
-  force: boolean;
 };
 
 export abstract class RollupService {
@@ -19,23 +18,11 @@ export abstract class RollupService {
     {ok: true; data: {backupFileName: string}} | {ok: false; error: Error}
   >;
 
-  protected abstract countTables(): Promise<
-    {ok: true; count: number} | {ok: false; error: Error}
-  >;
-
   public async run(request: RollupRequest): Promise<JobResult> {
     const invalid = this.validate(request);
 
     if (invalid) {
       return {ok: false, error: invalid, expected: true};
-    }
-
-    if (!request.force) {
-      const refusal = await this.refuseNonEmptyDatabase();
-
-      if (refusal) {
-        return refusal;
-      }
     }
 
     const resolved = await this.resolveFilename(request);
@@ -46,13 +33,6 @@ export abstract class RollupService {
     }
 
     return this.downloadAndRestore(resolved.key, request.local);
-  }
-
-  protected tableCountFailure() {
-    return {
-      ok: false as const,
-      error: new Error('Could not count the tables of the target database'),
-    };
   }
 
   private validate({filename, latest, local}: RollupRequest) {
@@ -67,27 +47,6 @@ export abstract class RollupService {
     }
 
     return undefined;
-  }
-
-  private async refuseNonEmptyDatabase(): Promise<JobResult | undefined> {
-    const tables = await this.countTables();
-
-    if (!tables.ok) {
-      this.logger.error(tables.error.message);
-      return tables;
-    }
-
-    if (tables.count === 0) {
-      return undefined;
-    }
-
-    return {
-      ok: false,
-      error: new Error(
-        `Target database is not empty (${tables.count} tables). Restore into an empty database or pass --force`,
-      ),
-      expected: true,
-    };
   }
 
   private async resolveFilename({filename, latest}: RollupRequest) {
