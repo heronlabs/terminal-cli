@@ -38,15 +38,18 @@ these per-deployment inline Dockerfiles.
 | `AWS_REGION` | yes | Region of the bucket. |
 | `AWS_ACCESS_KEY_ID` | yes | Credentials for the S3 upload. |
 | `AWS_SECRET_ACCESS_KEY` | yes | Credentials for the S3 upload. |
-| `SENTRY_DSN` | no | Report backup failures and log lines to Sentry. Leave empty to disable. |
+| `SENTRY_DSN` | no | Report error logs as Sentry issues, other log lines as Sentry Logs, and backup check-ins to Sentry. Leave empty to disable. |
 | `SENTRY_ENVIRONMENT` | no | Sentry environment (default `production`). |
-| `SENTRY_MONITOR_SLUG` | no | Sentry Cron monitor slug; each backup checks in `in_progress` then `ok`/`error`. Create the monitor in the Sentry UI with the crontab schedule (`0 */12 * * *`). |
 
 ## Notes
 
 - **The schedule lives in the inline Dockerfile's crontab** (`0 */12 * * *`).
   Changing the cadence means editing the Dockerfile and redeploying — it is not
   an environment variable.
+- **Sentry cron monitor.** Every backup (scheduled, the one at container start,
+  or a manual `hcli`) checks in `in_progress` then `ok`/`error` to the fixed
+  monitor slug `terminal-cli-backup`. Create that monitor in Sentry with the
+  crontab schedule `0 */12 * * *`.
 - **`USER root` is required.** The base `heronlabs/terminal-cli` image runs as
   `USER node`, but writing `/etc/crontabs/root` and running `crond` need root, so
   the inline Dockerfile switches back to root before installing the crontab.

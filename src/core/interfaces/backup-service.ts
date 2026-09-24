@@ -5,6 +5,8 @@ import {DateTime} from 'luxon';
 
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
+const monitorSlug = 'terminal-cli-backup';
+
 export abstract class BackupService {
   protected abstract dump(
     filename?: string,
@@ -23,12 +25,6 @@ export abstract class BackupService {
   }
 
   public async run(local: boolean, filename?: string) {
-    const monitorSlug = process.env.SENTRY_MONITOR_SLUG;
-
-    if (!monitorSlug) {
-      return this.backup(local, filename);
-    }
-
     const checkInId = Sentry.captureCheckIn({
       monitorSlug,
       status: 'in_progress',
@@ -49,8 +45,7 @@ export abstract class BackupService {
     const result = await this.dump(filename);
 
     if (!result.ok) {
-      this.logger.error(result.error.message);
-      Sentry.captureException(result.error);
+      this.logger.error(result.error);
       return {ok: false};
     }
 
@@ -66,8 +61,7 @@ export abstract class BackupService {
     this.logger.log('Deleted local backup file');
 
     if (uploadError) {
-      this.logger.error(uploadError.message);
-      Sentry.captureException(uploadError);
+      this.logger.error(uploadError);
       return {ok: false};
     }
 

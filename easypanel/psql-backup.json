@@ -3,7 +3,7 @@
     {
       "data": {
         "deploy": {"replicas": 1},
-        "env": "DATABASE_URL=postgres://user:password@host:5432/dbname\nAWS_S3_BUCKET_NAME=my-backup-bucket\nAWS_REGION=us-east-1\nAWS_ACCESS_KEY_ID=\nAWS_SECRET_ACCESS_KEY=\nSENTRY_DSN=\nSENTRY_ENVIRONMENT=production\nSENTRY_MONITOR_SLUG=",
+        "env": "DATABASE_URL=postgres://user:password@host:5432/dbname\nAWS_S3_BUCKET_NAME=my-backup-bucket\nAWS_REGION=us-east-1\nAWS_ACCESS_KEY_ID=\nAWS_SECRET_ACCESS_KEY=\nSENTRY_DSN=\nSENTRY_ENVIRONMENT=production",
         "projectName": "backups",
         "serviceName": "psql-backup",
         "source": {

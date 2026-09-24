@@ -13,5 +13,5 @@ Sentry.init({
   release: `terminal-cli@${version}`,
   sendDefaultPii: false,
   enableLogs: true,
-  integrations: [Sentry.pinoIntegration()],
+  integrations: [Sentry.pinoIntegration({error: {levels: ['error']}})],
 });

@@ -23,10 +23,7 @@ vi.mock('@aws-sdk/lib-storage', () => ({
     },
   ),
 }));
-vi.mock('@sentry/node', () => ({
-  captureCheckIn: vi.fn(),
-  captureException: vi.fn(),
-}));
+vi.mock('@sentry/node', () => ({captureCheckIn: vi.fn()}));
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
   createReadStream: vi.fn(),
@@ -218,7 +215,7 @@ describe('Given a service', () => {
 
       await service.run(true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should return ok false when dump fails', async () => {
@@ -303,7 +300,7 @@ describe('Given a service', () => {
 
       await service.run(false, filename);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should delete the local backup file when the upload fails', async () => {
@@ -337,71 +334,14 @@ describe('Given a service', () => {
 
       await service.run(true);
 
-      expect(loggerService.error).toHaveBeenCalledWith('mariadb-dump failed');
-    });
-  });
-
-  describe('Given monitoring', () => {
-    it('Should capture the dump error', async () => {
-      vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error(faker.lorem.word());
-      });
-
-      await service.run(true);
-
-      expect(Sentry.captureException).toHaveBeenCalledWith(
+      expect(loggerService.error).toHaveBeenCalledWith(
         new Error('mariadb-dump failed'),
       );
-    });
-
-    it('Should capture the upload error', async () => {
-      const error = new Error(faker.lorem.sentence());
-
-      vi.mocked(execSync).mockImplementationOnce(vi.fn());
-      uploadDone.mockRejectedValueOnce(error);
-
-      await service.run(false);
-
-      expect(Sentry.captureException).toHaveBeenCalledWith(error);
-    });
-
-    it('Should not capture when the backup succeeds', async () => {
-      vi.mocked(execSync).mockImplementationOnce(vi.fn());
-
-      await service.run(true);
-
-      expect(Sentry.captureException).not.toHaveBeenCalled();
     });
   });
 
   describe('Given a cron monitor', () => {
-    const monitorSlug = faker.string.alphanumeric(10);
-
-    beforeEach(() => {
-      vi.stubEnv('SENTRY_MONITOR_SLUG', monitorSlug);
-    });
-
-    afterEach(() => {
-      vi.unstubAllEnvs();
-    });
-
-    it('Should not check in when the monitor slug is unset', async () => {
-      vi.stubEnv('SENTRY_MONITOR_SLUG', undefined);
-      vi.mocked(execSync).mockImplementationOnce(vi.fn());
-
-      await service.run(true);
-
-      expect(Sentry.captureCheckIn).not.toHaveBeenCalled();
-    });
-
-    it('Should not check in when the monitor slug is empty', async () => {
-      vi.stubEnv('SENTRY_MONITOR_SLUG', '');
-      vi.mocked(execSync).mockImplementationOnce(vi.fn());
-
-      await service.run(true);
-
-      expect(Sentry.captureCheckIn).not.toHaveBeenCalled();
-    });
+    const monitorSlug = 'terminal-cli-backup';
 
     it('Should check in as in progress before the backup', async () => {
       vi.mocked(execSync).mockImplementationOnce(vi.fn());

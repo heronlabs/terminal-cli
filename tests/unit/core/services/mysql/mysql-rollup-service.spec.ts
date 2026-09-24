@@ -1,5 +1,4 @@
 import {faker} from '@faker-js/faker';
-import * as Sentry from '@sentry/node';
 import {execSync} from 'child_process';
 import {rmSync, unlinkSync} from 'fs';
 import {pipeline} from 'stream/promises';
@@ -15,7 +14,6 @@ import {
   ssmConfigService,
 } from '../../../../__mocks__/create-testing-module';
 
-vi.mock('@sentry/node', () => ({captureException: vi.fn()}));
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
   createWriteStream: vi.fn(),
@@ -174,7 +172,7 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should log the restore error message exactly when execSync fails', async () => {
@@ -187,7 +185,7 @@ describe('Given a service', () => {
       await service.run(filename, true);
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        'mariadb restore failed',
+        new Error('mariadb restore failed'),
       );
     });
 
@@ -243,7 +241,7 @@ describe('Given a service', () => {
 
       await service.run(filename, false);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should not restore when the download fails', async () => {
@@ -397,40 +395,6 @@ describe('Given a service', () => {
       expect(loggerService.log).not.toHaveBeenCalledWith(
         'Deleted downloaded backup file',
       );
-    });
-  });
-
-  describe('Given monitoring', () => {
-    const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
-
-    it('Should capture the restore error', async () => {
-      vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error(faker.lorem.word());
-      });
-
-      await service.run(filename, true);
-
-      expect(Sentry.captureException).toHaveBeenCalledWith(
-        new Error('mariadb restore failed'),
-      );
-    });
-
-    it('Should capture the download error', async () => {
-      const error = new Error(faker.lorem.sentence());
-
-      s3Service.send.mockRejectedValueOnce(error);
-
-      await service.run(filename, false);
-
-      expect(Sentry.captureException).toHaveBeenCalledWith(error);
-    });
-
-    it('Should not capture when the restore succeeds', async () => {
-      vi.mocked(execSync).mockImplementationOnce(vi.fn());
-
-      await service.run(filename, true);
-
-      expect(Sentry.captureException).not.toHaveBeenCalled();
     });
   });
 });

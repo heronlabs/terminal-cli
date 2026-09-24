@@ -141,11 +141,15 @@ All configuration comes from environment variables (see [.env.example](./.env.ex
 | `AWS_REGION` | for S3 | AWS region |
 | `AWS_ACCESS_KEY_ID` | for S3 | AWS credentials (or use an instance role) |
 | `AWS_SECRET_ACCESS_KEY` | for S3 | AWS credentials (or use an instance role) |
-| `SENTRY_DSN` | ❌ | Sentry DSN; when set, failures and command errors are reported as Sentry errors and every pino log line is sent as a Sentry Log. Unset or empty disables Sentry. |
+| `SENTRY_DSN` | ❌ | Sentry DSN; when set, every `error` log line becomes a Sentry issue (with the exception and stack trace), every log line (info, warn and error) is sent as a Sentry Log, backups send cron check-ins, and bootstrap/command errors are captured. Unset or empty disables Sentry. |
 | `SENTRY_ENVIRONMENT` | ❌ | Sentry environment (default `production`) |
-| `SENTRY_MONITOR_SLUG` | ❌ | Sentry Cron monitor slug; when set, each backup sends an `in_progress` check-in and an `ok`/`error` one when it ends (rollups never check in). Create the monitor in the Sentry UI with the same schedule as the crontab. |
 
 Locally, `pnpm start -- <command>` loads variables from a `.env` file via `dotenv`.
+
+Every backup, scheduled or manual, sends an `in_progress` cron check-in and an
+`ok`/`error` one when it ends to the Sentry monitor slug `terminal-cli-backup`
+(rollups never check in). Create that monitor in Sentry with a schedule that
+matches the template crontab (`0 */12 * * *`).
 
 An unresolvable `DATABASE_URL`, or a missing `AWS_S3_BUCKET_NAME` when S3 is
 used, fails the command with exit code `1`, like any other backup or rollup

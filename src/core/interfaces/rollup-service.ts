@@ -1,5 +1,4 @@
 import {Logger} from '@nestjs/common';
-import * as Sentry from '@sentry/node';
 import {rmSync, unlinkSync} from 'fs';
 
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
@@ -18,8 +17,7 @@ export abstract class RollupService {
 
       if (downloadError) {
         rmSync(filename, {force: true});
-        this.logger.error(downloadError.message);
-        Sentry.captureException(downloadError);
+        this.logger.error(downloadError);
         return {ok: false};
       }
     }
@@ -27,8 +25,7 @@ export abstract class RollupService {
     const result = await this.restore(filename);
 
     if (!result.ok) {
-      this.logger.error(result.error.message);
-      Sentry.captureException(result.error);
+      this.logger.error(result.error);
       this.deleteDownloadedFile(filename, local);
       return {ok: false};
     }

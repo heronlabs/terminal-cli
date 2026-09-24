@@ -41,12 +41,15 @@ never deletes the input file. S3 transfers stream
 Sentry is opt-in via `SENTRY_DSN` (unset or empty ⇒ SDK disabled, no network).
 `src/instrument.ts` (first import of `main.ts`) calls `Sentry.init` from
 `process.env` with `enableLogs` + `pinoIntegration`, so nestjs-pino log lines are
-sent as Sentry Logs. The base backup/rollup services call
-`Sentry.captureException` next to each failure log, `main.ts` `fail` captures
+sent as Sentry Logs, and `error: {levels: ['error']}` turns every `error` line
+into a Sentry issue. The base backup/rollup services report failures only via
+`logger.error(error)` (the Error itself, so nestjs-pino puts it in pino's `err`
+and Sentry gets the exception type/message/stack); `main.ts` `fail` captures
 bootstrap/command errors, and `Sentry.flush(2000)` runs after the app closes.
-When `SENTRY_MONITOR_SLUG` is set, `BackupService.run` sends an `in_progress`
-cron check-in and an `ok`/`error` one when the backup ends (rollups never check
-in); the monitor is created in the Sentry UI with the template crontab schedule.
+Every backup (scheduled or manual) sends an `in_progress` cron check-in to the
+fixed monitor slug `terminal-cli-backup` and an `ok`/`error` one when it ends
+(rollups never check in); the monitor is created in Sentry with the template
+crontab schedule (`0 */12 * * *`).
 
 ## Source Layout
 
@@ -79,7 +82,7 @@ Env vars (see `.env.example`): `DATABASE_URL` (a `postgres://`/`mysql://`
 connection URL, or an AWS SSM Parameter Store ARN resolved via
 `@heronlabs/env-ssm`), and for S3 `AWS_S3_BUCKET_NAME`, `AWS_REGION`,
 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; optional `SENTRY_DSN`,
-`SENTRY_ENVIRONMENT` (default `production`) and `SENTRY_MONITOR_SLUG`, read from
+`SENTRY_ENVIRONMENT` (default `production`), read from
 `process.env` (locally `pnpm start` loads `.env` via dotenv-cli before
 `instrument.ts` runs). `DATABASE_URL` is resolved through an
 injected `SsmConfigService` (env-ssm v2 no longer ships a NestJS module, so
