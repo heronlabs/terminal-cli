@@ -6,8 +6,6 @@ import {DateTime} from 'luxon';
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
 export abstract class BackupService {
-  protected readonly logger = new Logger(this.constructor.name);
-
   protected abstract dump(
     filename?: string,
   ): Promise<
@@ -47,7 +45,7 @@ export abstract class BackupService {
     const result = await this.dump(filename);
 
     if (!result.ok) {
-      this.logger.error({err: result.error}, 'Backup dump failed');
+      this.logger.error(result.error);
       return {ok: false};
     }
 
@@ -60,21 +58,18 @@ export abstract class BackupService {
     );
 
     unlinkSync(result.data.backupFileName);
-    this.logger.log(
-      {filename: result.data.backupFileName},
-      'Deleted local backup file',
-    );
+    this.logger.log('Deleted local backup file');
 
     if (uploadError) {
-      this.logger.error(
-        {err: uploadError, filename: result.data.backupFileName},
-        'Backup upload failed',
-      );
+      this.logger.error(uploadError);
       return {ok: false};
     }
 
     return {ok: true};
   }
 
-  constructor(protected readonly s3StorageService: S3StorageService) {}
+  constructor(
+    protected readonly logger: Logger,
+    protected readonly s3StorageService: S3StorageService,
+  ) {}
 }

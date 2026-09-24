@@ -2,7 +2,7 @@ import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
 import {pipeline} from 'stream/promises';
 
-import {CliModule} from '../../../src/application/cli/cli-module';
+import {cliModule} from '../../../src/application/cli/cli-module';
 import {PsqlRollupCommand} from '../../../src/application/cli/commands/rollup/psql-rollup-command';
 import {RollupOptionsKeys} from '../../../src/application/cli/commands/rollup/types/rollup-options';
 import {
@@ -24,9 +24,7 @@ describe('Given a CLI command', () => {
   const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
   beforeEach(async () => {
-    const moduleRef = await createTestingModule({
-      imports: [CliModule],
-    }).compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     command = moduleRef.get(PsqlRollupCommand);
   });
 
@@ -62,11 +60,7 @@ describe('Given a CLI command', () => {
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
-      expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error(message), filename},
-        'Backup download failed',
-        'PsqlRollupService',
-      );
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should set exit code 1 when the download fails', async () => {
@@ -86,11 +80,7 @@ describe('Given a CLI command', () => {
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
-      expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error(message), filename},
-        'Backup download failed',
-        'PsqlRollupService',
-      );
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should log error when execSync throws', async () => {
@@ -103,9 +93,7 @@ describe('Given a CLI command', () => {
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error('psql restore failed'), filename},
-        'Backup restore failed',
-        'PsqlRollupService',
+        new Error('psql restore failed'),
       );
     });
 
@@ -129,9 +117,7 @@ describe('Given a CLI command', () => {
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error('Error downloading file from S3'), filename},
-        'Backup download failed',
-        'PsqlRollupService',
+        new Error('Error downloading file from S3'),
       );
     });
 

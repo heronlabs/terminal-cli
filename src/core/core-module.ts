@@ -1,4 +1,4 @@
-import {Module} from '@nestjs/common';
+import {Logger, Module, ModuleMetadata} from '@nestjs/common';
 
 import {EnvironmentModule} from '../infrastructure/environment/environment-module';
 import {StorageModule} from '../infrastructure/storage/storage-module';
@@ -8,9 +8,10 @@ import {PsqlBackupService} from './services/psql/psql-backup-service';
 import {PsqlRollupService} from './services/psql/psql-rollup-service';
 import {ScriptLoaderService} from './services/script-loader-service';
 
-@Module({
+const coreModule: ModuleMetadata = {
   imports: [EnvironmentModule, StorageModule],
   providers: [
+    Logger,
     ScriptLoaderService,
     MysqlBackupService,
     MysqlRollupService,
@@ -24,5 +25,6 @@ import {ScriptLoaderService} from './services/script-loader-service';
     PsqlBackupService,
     PsqlRollupService,
   ],
-})
+};
+@Module(coreModule)
 export class CoreModule {}

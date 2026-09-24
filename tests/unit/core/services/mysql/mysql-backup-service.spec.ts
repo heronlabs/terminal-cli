@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/node';
 import {execSync} from 'child_process';
 import {rmSync, unlinkSync} from 'fs';
 
-import {CliModule} from '../../../../../src/application/cli/cli-module';
+import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {MysqlBackupService} from '../../../../../src/core/services/mysql/mysql-backup-service';
 import {
   createTestingModule,
@@ -35,9 +35,7 @@ describe('Given a service', () => {
   let service: MysqlBackupService;
 
   beforeEach(async () => {
-    const moduleRef = await createTestingModule({
-      imports: [CliModule],
-    }).compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(MysqlBackupService);
   });
 
@@ -98,7 +96,7 @@ describe('Given a service', () => {
       );
     });
 
-    it('Should log the dump completion with the database and filename', async () => {
+    it('Should log the exact success message including the filename', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
@@ -106,9 +104,7 @@ describe('Given a service', () => {
       await service.run(true, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        {database: databaseConnection.name, filename},
-        'Backup dump completed',
-        MysqlBackupService.name,
+        `Backup MySQL database successfully! Filename: ${filename}`,
       );
     });
 
@@ -118,16 +114,11 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        {
-          database: databaseConnection.name,
-          filename: expect.stringMatching(
-            new RegExp(
-              `^${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
-            ),
+        expect.stringMatching(
+          new RegExp(
+            `^Backup MySQL database successfully! Filename: ${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
           ),
-        },
-        'Backup dump completed',
-        MysqlBackupService.name,
+        ),
       );
     });
 
@@ -183,9 +174,7 @@ describe('Given a service', () => {
       await service.run(false, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        {filename},
         'Deleted local backup file',
-        MysqlBackupService.name,
       );
     });
 
@@ -219,18 +208,14 @@ describe('Given a service', () => {
       expect(execSync).not.toHaveBeenCalled();
     });
 
-    it('Should log the database resolution error as a failed dump', async () => {
+    it('Should log the database resolution error message exactly', async () => {
       const message = faker.lorem.sentence();
 
       ssmConfigService.getOrThrow.mockRejectedValueOnce(new Error(message));
 
       await service.run(true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error(message)},
-        'Backup dump failed',
-        MysqlBackupService.name,
-      );
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should return ok false when dump fails', async () => {
@@ -306,7 +291,7 @@ describe('Given a service', () => {
       expect(result).toEqual({ok: false});
     });
 
-    it('Should log the upload error with the filename when the upload fails', async () => {
+    it('Should log the upload error message exactly when the upload fails', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
       const message = faker.lorem.sentence();
 
@@ -315,11 +300,7 @@ describe('Given a service', () => {
 
       await service.run(false, filename);
 
-      expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error(message), filename},
-        'Backup upload failed',
-        MysqlBackupService.name,
-      );
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should delete the local backup file when the upload fails', async () => {
@@ -342,9 +323,7 @@ describe('Given a service', () => {
       await service.run(false, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        {filename},
         'Deleted local backup file',
-        MysqlBackupService.name,
       );
     });
 
@@ -356,9 +335,7 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error('mariadb-dump failed')},
-        'Backup dump failed',
-        MysqlBackupService.name,
+        new Error('mariadb-dump failed'),
       );
     });
   });

@@ -2,7 +2,7 @@ import {Upload} from '@aws-sdk/lib-storage';
 import {faker} from '@faker-js/faker';
 import {execSync} from 'child_process';
 
-import {CliModule} from '../../../src/application/cli/cli-module';
+import {cliModule} from '../../../src/application/cli/cli-module';
 import {PsqlBackupCommand} from '../../../src/application/cli/commands/backup/psql-backup-command';
 import {BackupOptionsKeys} from '../../../src/application/cli/commands/backup/types/backup-options';
 import {
@@ -30,9 +30,7 @@ describe('Given a CLI command', () => {
   let command: PsqlBackupCommand;
 
   beforeEach(async () => {
-    const moduleRef = await createTestingModule({
-      imports: [CliModule],
-    }).compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     command = moduleRef.get(PsqlBackupCommand);
   });
 
@@ -65,9 +63,7 @@ describe('Given a CLI command', () => {
       await command.run();
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error('pg_dump failed')},
-        'Backup dump failed',
-        'PsqlBackupService',
+        new Error('pg_dump failed'),
       );
     });
 
@@ -90,11 +86,7 @@ describe('Given a CLI command', () => {
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error(message), filename: expect.any(String)},
-        'Backup upload failed',
-        'PsqlBackupService',
-      );
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should set exit code 1 when the upload fails', async () => {
@@ -115,12 +107,7 @@ describe('Given a CLI command', () => {
       await command.run();
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        {
-          err: new Error('Error uploading file to S3'),
-          filename: expect.any(String),
-        },
-        'Backup upload failed',
-        'PsqlBackupService',
+        new Error('Error uploading file to S3'),
       );
     });
 
@@ -138,9 +125,9 @@ describe('Given a CLI command', () => {
       await command.run([], {[BackupOptionsKeys.LOCAL]: true});
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        {database: expect.any(String), filename: expect.any(String)},
-        'Backup dump completed',
-        'PsqlBackupService',
+        expect.stringMatching(
+          /^Backup PostgreSQL database successfully! Filename: /,
+        ),
       );
     });
 

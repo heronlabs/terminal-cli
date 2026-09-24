@@ -3,7 +3,7 @@ import {execSync} from 'child_process';
 import {rmSync, unlinkSync} from 'fs';
 import {pipeline} from 'stream/promises';
 
-import {CliModule} from '../../../../../src/application/cli/cli-module';
+import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {MysqlRollupService} from '../../../../../src/core/services/mysql/mysql-rollup-service';
 import {
   createTestingModule,
@@ -26,9 +26,7 @@ describe('Given a service', () => {
   let service: MysqlRollupService;
 
   beforeEach(async () => {
-    const moduleRef = await createTestingModule({
-      imports: [CliModule],
-    }).compile();
+    const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(MysqlRollupService);
   });
 
@@ -89,18 +87,14 @@ describe('Given a service', () => {
       );
     });
 
-    it('Should log the restore completion with the backup filename', async () => {
+    it('Should log the restore success message with the backup filename', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(filename, true);
 
-      expect(loggerService.log).toHaveBeenCalledWith(
-        {filename},
-        'Backup restore completed',
-        MysqlRollupService.name,
-      );
+      expect(loggerService.log).toHaveBeenCalledWith(`Restored ${filename}`);
     });
 
     it('Should not invoke S3 send when local flag is true', async () => {
@@ -144,9 +138,7 @@ describe('Given a service', () => {
       await service.run(filename, false);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        {filename},
         'Deleted downloaded backup file',
-        MysqlRollupService.name,
       );
     });
 
@@ -172,7 +164,7 @@ describe('Given a service', () => {
       expect(execSync).not.toHaveBeenCalled();
     });
 
-    it('Should log the database resolution error as a failed restore', async () => {
+    it('Should log the database resolution error message exactly', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
       const message = faker.lorem.sentence();
 
@@ -180,14 +172,10 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error(message), filename},
-        'Backup restore failed',
-        MysqlRollupService.name,
-      );
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
-    it('Should log the restore error with the filename when execSync fails', async () => {
+    it('Should log the restore error message exactly when execSync fails', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       vi.mocked(execSync).mockImplementationOnce(() => {
@@ -197,9 +185,7 @@ describe('Given a service', () => {
       await service.run(filename, true);
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error('mariadb restore failed'), filename},
-        'Backup restore failed',
-        MysqlRollupService.name,
+        new Error('mariadb restore failed'),
       );
     });
 
@@ -247,7 +233,7 @@ describe('Given a service', () => {
       expect(result).toEqual({ok: false});
     });
 
-    it('Should log the download error with the filename when the download fails', async () => {
+    it('Should log the download error message exactly when the download fails', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
       const message = faker.lorem.sentence();
 
@@ -255,11 +241,7 @@ describe('Given a service', () => {
 
       await service.run(filename, false);
 
-      expect(loggerService.error).toHaveBeenCalledWith(
-        {err: new Error(message), filename},
-        'Backup download failed',
-        MysqlRollupService.name,
-      );
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should not restore when the download fails', async () => {
@@ -373,9 +355,7 @@ describe('Given a service', () => {
       await service.run(filename, false);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        {filename},
         'Deleted downloaded backup file',
-        MysqlRollupService.name,
       );
     });
 
@@ -413,9 +393,7 @@ describe('Given a service', () => {
       await service.run(filename, true);
 
       expect(loggerService.log).not.toHaveBeenCalledWith(
-        {filename},
         'Deleted downloaded backup file',
-        MysqlRollupService.name,
       );
     });
   });

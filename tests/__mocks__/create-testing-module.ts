@@ -1,7 +1,7 @@
 import {S3Client} from '@aws-sdk/client-s3';
 import {faker} from '@faker-js/faker';
 import {ConfigService} from '@heronlabs/env-ssm';
-import {ModuleMetadata} from '@nestjs/common';
+import {Logger, ModuleMetadata} from '@nestjs/common';
 import {ConfigService as NestConfigService} from '@nestjs/config';
 import {Test, TestingModuleBuilder} from '@nestjs/testing';
 import {Mock} from 'moq.ts';
@@ -59,7 +59,7 @@ export const createTestingModule = (
   configService.getOrThrow.mockImplementation((key: string) => key);
   ssmConfigService.getOrThrow.mockResolvedValue(databaseUrl);
 
-  const moduleRef = Test.createTestingModule(metadata).setLogger(loggerService);
+  const moduleRef = Test.createTestingModule(metadata);
 
   moduleRef
     .overrideProvider(S3Client)
@@ -67,6 +67,17 @@ export const createTestingModule = (
       new Mock<S3Client>()
         .setup(service => service.send)
         .returns(s3Service.send)
+        .object(),
+    )
+    .overrideProvider(Logger)
+    .useValue(
+      new Mock<Logger>()
+        .setup(service => service.warn)
+        .returns(loggerService.warn)
+        .setup(service => service.log)
+        .returns(loggerService.log)
+        .setup(service => service.error)
+        .returns(loggerService.error)
         .object(),
     )
     .overrideProvider(NestConfigService)

@@ -1,12 +1,13 @@
 import {S3Client} from '@aws-sdk/client-s3';
-import {Module} from '@nestjs/common';
+import {Logger, Module, ModuleMetadata} from '@nestjs/common';
 
 import {EnvironmentModule} from '../environment/environment-module';
 import {S3StorageService} from './services/s3-storage-service';
 
-@Module({
+export const storageModule: ModuleMetadata = {
   imports: [EnvironmentModule],
   providers: [
+    Logger,
     S3StorageService,
     {
       provide: S3Client,
@@ -14,5 +15,7 @@ import {S3StorageService} from './services/s3-storage-service';
     },
   ],
   exports: [S3StorageService],
-})
+};
+
+@Module(storageModule)
 export class StorageModule {}

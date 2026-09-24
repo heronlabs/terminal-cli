@@ -4,8 +4,6 @@ import {rmSync, unlinkSync} from 'fs';
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
 export abstract class RollupService {
-  protected readonly logger = new Logger(this.constructor.name);
-
   protected abstract restore(
     filename: string,
   ): Promise<
@@ -19,10 +17,7 @@ export abstract class RollupService {
 
       if (downloadError) {
         rmSync(filename, {force: true});
-        this.logger.error(
-          {err: downloadError, filename},
-          'Backup download failed',
-        );
+        this.logger.error(downloadError);
         return {ok: false};
       }
     }
@@ -30,15 +25,12 @@ export abstract class RollupService {
     const result = await this.restore(filename);
 
     if (!result.ok) {
-      this.logger.error({err: result.error, filename}, 'Backup restore failed');
+      this.logger.error(result.error);
       this.deleteDownloadedFile(filename, local);
       return {ok: false};
     }
 
-    this.logger.log(
-      {filename: result.data.backupFileName},
-      'Backup restore completed',
-    );
+    this.logger.log(`Restored ${result.data.backupFileName}`);
 
     this.deleteDownloadedFile(filename, local);
 
@@ -51,8 +43,11 @@ export abstract class RollupService {
     }
 
     unlinkSync(filename);
-    this.logger.log({filename}, 'Deleted downloaded backup file');
+    this.logger.log('Deleted downloaded backup file');
   }
 
-  constructor(protected readonly s3StorageService: S3StorageService) {}
+  constructor(
+    protected readonly logger: Logger,
+    protected readonly s3StorageService: S3StorageService,
+  ) {}
 }
