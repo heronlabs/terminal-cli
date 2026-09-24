@@ -1,12 +1,11 @@
 import {Upload} from '@aws-sdk/lib-storage';
 import {faker} from '@faker-js/faker';
+import * as Sentry from '@sentry/node';
 import {execSync} from 'child_process';
 import {rmSync, unlinkSync} from 'fs';
-import type {MockInstance} from 'vitest';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {PsqlBackupService} from '../../../../../src/core/services/psql/psql-backup-service';
-import {MonitoringService} from '../../../../../src/infrastructure/monitoring/services/monitoring-service';
 import {
   createTestingModule,
   databaseConnection,
@@ -24,6 +23,10 @@ vi.mock('@aws-sdk/lib-storage', () => ({
     },
   ),
 }));
+vi.mock('@sentry/node', () => ({
+  captureCheckIn: vi.fn(),
+  captureException: vi.fn(),
+}));
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
   createReadStream: vi.fn(),
@@ -33,12 +36,10 @@ vi.mock('fs', () => ({
 
 describe('Given a service', () => {
   let service: PsqlBackupService;
-  let captureError: MockInstance<MonitoringService['captureError']>;
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(PsqlBackupService);
-    captureError = vi.spyOn(moduleRef.get(MonitoringService), 'captureError');
   });
 
   describe('Given psql backup', () => {
@@ -348,7 +349,9 @@ describe('Given a service', () => {
 
       await service.run(true);
 
-      expect(captureError).toHaveBeenCalledWith(new Error('pg_dump failed'));
+      expect(Sentry.captureException).toHaveBeenCalledWith(
+        new Error('pg_dump failed'),
+      );
     });
 
     it('Should capture the upload error', async () => {
@@ -359,7 +362,7 @@ describe('Given a service', () => {
 
       await service.run(false);
 
-      expect(captureError).toHaveBeenCalledWith(error);
+      expect(Sentry.captureException).toHaveBeenCalledWith(error);
     });
 
     it('Should not capture when the backup succeeds', async () => {
@@ -367,7 +370,86 @@ describe('Given a service', () => {
 
       await service.run(true);
 
-      expect(captureError).not.toHaveBeenCalled();
+      expect(Sentry.captureException).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Given a cron monitor', () => {
+    const monitorSlug = faker.string.alphanumeric(10);
+
+    beforeEach(() => {
+      vi.stubEnv('SENTRY_MONITOR_SLUG', monitorSlug);
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('Should not check in when the monitor slug is unset', async () => {
+      vi.stubEnv('SENTRY_MONITOR_SLUG', undefined);
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true);
+
+      expect(Sentry.captureCheckIn).not.toHaveBeenCalled();
+    });
+
+    it('Should not check in when the monitor slug is empty', async () => {
+      vi.stubEnv('SENTRY_MONITOR_SLUG', '');
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true);
+
+      expect(Sentry.captureCheckIn).not.toHaveBeenCalled();
+    });
+
+    it('Should check in as in progress before the backup', async () => {
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true);
+
+      expect(Sentry.captureCheckIn).toHaveBeenNthCalledWith(1, {
+        monitorSlug,
+        status: 'in_progress',
+      });
+    });
+
+    it('Should check in as ok when the backup succeeds', async () => {
+      const checkInId = faker.string.uuid();
+
+      vi.mocked(Sentry.captureCheckIn).mockReturnValueOnce(checkInId);
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true);
+
+      expect(Sentry.captureCheckIn).toHaveBeenLastCalledWith({
+        checkInId,
+        monitorSlug,
+        status: 'ok',
+      });
+    });
+
+    it('Should check in as error when the backup fails', async () => {
+      const checkInId = faker.string.uuid();
+
+      vi.mocked(Sentry.captureCheckIn).mockReturnValueOnce(checkInId);
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(true);
+
+      expect(Sentry.captureCheckIn).toHaveBeenLastCalledWith({
+        checkInId,
+        monitorSlug,
+        status: 'error',
+      });
+    });
+
+    it('Should return the backup result', async () => {
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      expect(await service.run(true)).toEqual({ok: true});
     });
   });
 });

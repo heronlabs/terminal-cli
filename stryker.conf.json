@@ -13,6 +13,7 @@
   "mutate": [
     "src/**/*.ts",
     "!src/main.ts",
+    "!src/instrument.ts",
     "!src/**/*factory.ts",
     "!src/**/*-module.ts"
   ],

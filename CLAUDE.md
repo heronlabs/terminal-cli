@@ -38,23 +38,27 @@ never deletes the input file. S3 transfers stream
 (`@aws-sdk/lib-storage` `Upload` from `createReadStream`, download piped into
 `createWriteStream`).
 
-Sentry error reporting is opt-in via `SENTRY_DSN` (errors only — no logs or
-tracing). `MonitoringService.init()` (called from `main.ts`) is a
-no-op without a DSN; the base backup/rollup services call `captureError` next to
-each failure log, `main.ts` `fail` captures bootstrap/command errors, and
-`app.close()` flushes (2s) via `onApplicationShutdown`.
+Sentry is opt-in via `SENTRY_DSN` (unset or empty ⇒ SDK disabled, no network).
+`src/instrument.ts` (first import of `main.ts`) calls `Sentry.init` from
+`process.env` with `enableLogs` + `pinoIntegration`, so nestjs-pino log lines are
+sent as Sentry Logs. The base backup/rollup services call
+`Sentry.captureException` next to each failure log, `main.ts` `fail` captures
+bootstrap/command errors, and `Sentry.flush(2000)` runs after the app closes.
+When `SENTRY_MONITOR_SLUG` is set, `BackupService.run` sends an `in_progress`
+cron check-in and an `ok`/`error` one when the backup ends (rollups never check
+in); the monitor is created in the Sentry UI with the template crontab schedule.
 
 ## Source Layout
 
 | Path | Role |
 |---|---|
 | `src/main.ts` | Bootstrap — `CommandFactory.runApplication(CliModule)` |
+| `src/instrument.ts` | Sentry early init (errors, pino logs), imported first by `main.ts` |
 | `src/application/cli/` | `cli-module.ts` + `commands/{backup,rollup,version}/` (nest-commander commands + option types) |
 | `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration) |
 | `src/core/services/` | One folder per engine — `{mysql,psql}/` with its backup + rollup services and `.sh` scripts; shared `script-loader-service.ts` at the root |
 | `src/infrastructure/environment/` | `EnvironmentService` — typed wrapper over `@nestjs/config` |
 | `src/infrastructure/log/` | `LogModule` — nestjs-pino global logger |
-| `src/infrastructure/monitoring/` | `MonitoringService` — Sentry `init` / `captureError` / flush on shutdown |
 | `src/infrastructure/storage/` | `S3StorageService` — AWS SDK v3 streamed upload (`@aws-sdk/lib-storage`) / download |
 
 ## Architecture Rules (`pnpm dep:cruise`)
@@ -63,7 +67,7 @@ each failure log, `main.ts` `fail` captures bootstrap/command errors, and
 - `core/` must not import `application/`.
 - `application/` must not import `infrastructure/` (except `cli-module.ts` — the composition root).
 - `infrastructure/` must not import `application/` or `core/`.
-- `core/` MAY import `infrastructure/` — the backup/rollup base services depend on the S3 adapter and `MonitoringService` by design.
+- `core/` MAY import `infrastructure/` — the backup/rollup base services depend on the S3 adapter by design.
 - Production code in `src/` must not import `devDependencies` (type-only imports allowed).
 - Every import from `src/` must resolve to a `package.json` dependency (no phantom deps).
 - Every module in `src/` must be reachable from `main.ts` (dead-code guard).
@@ -74,8 +78,10 @@ each failure log, `main.ts` `fail` captures bootstrap/command errors, and
 Env vars (see `.env.example`): `DATABASE_URL` (a `postgres://`/`mysql://`
 connection URL, or an AWS SSM Parameter Store ARN resolved via
 `@heronlabs/env-ssm`), and for S3 `AWS_S3_BUCKET_NAME`, `AWS_REGION`,
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; optional `SENTRY_DSN` and
-`SENTRY_ENVIRONMENT` (default `production`). `DATABASE_URL` is resolved through an
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; optional `SENTRY_DSN`,
+`SENTRY_ENVIRONMENT` (default `production`) and `SENTRY_MONITOR_SLUG`, read from
+`process.env` (locally `pnpm start` loads `.env` via dotenv-cli before
+`instrument.ts` runs). `DATABASE_URL` is resolved through an
 injected `SsmConfigService` (env-ssm v2 no longer ships a NestJS module, so
 `EnvironmentModule` provides it via `SsmConfigFactory.make()`) and parsed by the
 async `EnvironmentService.database()`
@@ -90,8 +96,8 @@ subprocesses via env vars.
 | Test location | `tests/unit/` (mirrors `src/`); integration round-trips in `tests-integration/` |
 | Shared mocks | `tests/__mocks__/create-testing-module.ts` (moq.ts + vitest) |
 | Libraries | `@faker-js/faker`, `moq.ts`, `nest-commander-testing` |
-| Coverage | v8, 100% thresholds; excludes `main.ts`, `*.d.ts`, `*factory.ts`, `types/` |
-| Mutation | Stryker 9.x, 100% break; mutates `src/**/*.ts` minus `main.ts`, `*.d.ts`, `*factory.ts`, `*-module.ts` |
+| Coverage | v8, 100% thresholds; excludes `main.ts`, `instrument.ts`, `*.d.ts`, `*factory.ts`, `types/` |
+| Mutation | Stryker 9.x, 100% break; mutates `src/**/*.ts` minus `main.ts`, `instrument.ts`, `*.d.ts`, `*factory.ts`, `*-module.ts` |
 
 ## CI/CD
 

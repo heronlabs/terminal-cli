@@ -1,12 +1,11 @@
 import {faker} from '@faker-js/faker';
+import * as Sentry from '@sentry/node';
 import {execSync} from 'child_process';
 import {rmSync, unlinkSync} from 'fs';
 import {pipeline} from 'stream/promises';
-import type {MockInstance} from 'vitest';
 
 import {cliModule} from '../../../../../src/application/cli/cli-module';
 import {MysqlRollupService} from '../../../../../src/core/services/mysql/mysql-rollup-service';
-import {MonitoringService} from '../../../../../src/infrastructure/monitoring/services/monitoring-service';
 import {
   createTestingModule,
   databaseConnection,
@@ -16,6 +15,7 @@ import {
   ssmConfigService,
 } from '../../../../__mocks__/create-testing-module';
 
+vi.mock('@sentry/node', () => ({captureException: vi.fn()}));
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
   createWriteStream: vi.fn(),
@@ -26,12 +26,10 @@ vi.mock('stream/promises', () => ({pipeline: vi.fn()}));
 
 describe('Given a service', () => {
   let service: MysqlRollupService;
-  let captureError: MockInstance<MonitoringService['captureError']>;
 
   beforeEach(async () => {
     const moduleRef = await createTestingModule(cliModule).compile();
     service = moduleRef.get(MysqlRollupService);
-    captureError = vi.spyOn(moduleRef.get(MonitoringService), 'captureError');
   });
 
   describe('Given mysql rollup', () => {
@@ -412,7 +410,7 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(captureError).toHaveBeenCalledWith(
+      expect(Sentry.captureException).toHaveBeenCalledWith(
         new Error('mariadb restore failed'),
       );
     });
@@ -424,7 +422,7 @@ describe('Given a service', () => {
 
       await service.run(filename, false);
 
-      expect(captureError).toHaveBeenCalledWith(error);
+      expect(Sentry.captureException).toHaveBeenCalledWith(error);
     });
 
     it('Should not capture when the restore succeeds', async () => {
@@ -432,7 +430,7 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(captureError).not.toHaveBeenCalled();
+      expect(Sentry.captureException).not.toHaveBeenCalled();
     });
   });
 });

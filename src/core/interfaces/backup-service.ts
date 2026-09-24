@@ -1,8 +1,8 @@
 import {Logger} from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import {unlinkSync} from 'fs';
 import {DateTime} from 'luxon';
 
-import {MonitoringService} from '../../infrastructure/monitoring/services/monitoring-service';
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
 export abstract class BackupService {
@@ -23,11 +23,34 @@ export abstract class BackupService {
   }
 
   public async run(local: boolean, filename?: string) {
+    const monitorSlug = process.env.SENTRY_MONITOR_SLUG;
+
+    if (!monitorSlug) {
+      return this.backup(local, filename);
+    }
+
+    const checkInId = Sentry.captureCheckIn({
+      monitorSlug,
+      status: 'in_progress',
+    });
+
+    const result = await this.backup(local, filename);
+
+    Sentry.captureCheckIn({
+      checkInId,
+      monitorSlug,
+      status: result.ok ? 'ok' : 'error',
+    });
+
+    return result;
+  }
+
+  private async backup(local: boolean, filename?: string) {
     const result = await this.dump(filename);
 
     if (!result.ok) {
       this.logger.error(result.error.message);
-      this.monitoringService.captureError(result.error);
+      Sentry.captureException(result.error);
       return {ok: false};
     }
 
@@ -44,7 +67,7 @@ export abstract class BackupService {
 
     if (uploadError) {
       this.logger.error(uploadError.message);
-      this.monitoringService.captureError(uploadError);
+      Sentry.captureException(uploadError);
       return {ok: false};
     }
 
@@ -54,6 +77,5 @@ export abstract class BackupService {
   constructor(
     protected readonly logger: Logger,
     protected readonly s3StorageService: S3StorageService,
-    protected readonly monitoringService: MonitoringService,
   ) {}
 }

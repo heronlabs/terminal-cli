@@ -1,7 +1,6 @@
 import {Logger, Module, ModuleMetadata} from '@nestjs/common';
 
 import {EnvironmentModule} from '../infrastructure/environment/environment-module';
-import {MonitoringModule} from '../infrastructure/monitoring/monitoring-module';
 import {StorageModule} from '../infrastructure/storage/storage-module';
 import {MysqlBackupService} from './services/mysql/mysql-backup-service';
 import {MysqlRollupService} from './services/mysql/mysql-rollup-service';
@@ -10,7 +9,7 @@ import {PsqlRollupService} from './services/psql/psql-rollup-service';
 import {ScriptLoaderService} from './services/script-loader-service';
 
 const coreModule: ModuleMetadata = {
-  imports: [EnvironmentModule, StorageModule, MonitoringModule],
+  imports: [EnvironmentModule, StorageModule],
   providers: [
     Logger,
     ScriptLoaderService,

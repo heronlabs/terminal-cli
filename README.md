@@ -141,8 +141,9 @@ All configuration comes from environment variables (see [.env.example](./.env.ex
 | `AWS_REGION` | for S3 | AWS region |
 | `AWS_ACCESS_KEY_ID` | for S3 | AWS credentials (or use an instance role) |
 | `AWS_SECRET_ACCESS_KEY` | for S3 | AWS credentials (or use an instance role) |
-| `SENTRY_DSN` | ❌ | Sentry DSN; when set, backup/rollup failures and command errors are reported to Sentry (errors only). Unset or empty disables Sentry. |
+| `SENTRY_DSN` | ❌ | Sentry DSN; when set, failures and command errors are reported as Sentry errors and every pino log line is sent as a Sentry Log. Unset or empty disables Sentry. |
 | `SENTRY_ENVIRONMENT` | ❌ | Sentry environment (default `production`) |
+| `SENTRY_MONITOR_SLUG` | ❌ | Sentry Cron monitor slug; when set, each backup sends an `in_progress` check-in and an `ok`/`error` one when it ends (rollups never check in). Create the monitor in the Sentry UI with the same schedule as the crontab. |
 
 Locally, `pnpm start -- <command>` loads variables from a `.env` file via `dotenv`.
 
@@ -156,6 +157,7 @@ Hexagonal NestJS layering:
 
 ```
 src/
+├── instrument.ts         # Sentry init (imported first by main.ts)
 ├── application/          # CLI surface (nest-commander)
 │   └── cli/
 │       ├── cli-module.ts
@@ -166,7 +168,6 @@ src/
 └── infrastructure/       # adapters
     ├── environment/      # EnvironmentService (ConfigService wrapper)
     ├── log/              # nestjs-pino logger module
-    ├── monitoring/       # MonitoringService (Sentry error reporting)
     └── storage/          # S3StorageService (AWS SDK v3)
 ```
 
@@ -207,9 +208,9 @@ pnpm test:integration                         # both
 | Integration tests | `tests-integration/` — Docker-based round-trip (PostgreSQL + MySQL) |
 | Shared mocks | `tests/__mocks__/create-testing-module.ts` (moq.ts + vitest) |
 | Coverage | v8, 100% lines/functions/branches/statements |
-| Coverage excludes | `**/main.ts`, `**/*.d.ts`, `**/*factory.ts`, `**/types/` |
+| Coverage excludes | `**/main.ts`, `**/instrument.ts`, `**/*.d.ts`, `**/*factory.ts`, `**/types/` |
 | Mutation | Stryker 9.x (`stryker.conf.json`), 100% break threshold |
-| Mutation scope | `src/**/*.ts` excluding `main.ts`, `*.d.ts`, `*factory.ts`, `*-module.ts` |
+| Mutation scope | `src/**/*.ts` excluding `main.ts`, `instrument.ts`, `*.d.ts`, `*factory.ts`, `*-module.ts` |
 
 ```bash
 pnpm test:unit      # vitest run with coverage
