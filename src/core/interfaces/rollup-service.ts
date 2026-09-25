@@ -17,7 +17,7 @@ export abstract class RollupService {
 
       if (downloadError) {
         rmSync(filename, {force: true});
-        this.logger.error(downloadError.message);
+        this.logger.error(downloadError);
         return {ok: false};
       }
     }
@@ -25,7 +25,7 @@ export abstract class RollupService {
     const result = await this.restore(filename);
 
     if (!result.ok) {
-      this.logger.error(result.error.message);
+      this.logger.error(result.error);
       this.deleteDownloadedFile(filename, local);
       return {ok: false};
     }

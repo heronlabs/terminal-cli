@@ -62,7 +62,9 @@ describe('Given a CLI command', () => {
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith('pg_dump failed');
+      expect(loggerService.error).toHaveBeenCalledWith(
+        new Error('pg_dump failed'),
+      );
     });
 
     it('Should set exit code 1 when the dump fails', async () => {
@@ -84,7 +86,7 @@ describe('Given a CLI command', () => {
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should set exit code 1 when the upload fails', async () => {
@@ -105,7 +107,7 @@ describe('Given a CLI command', () => {
       await command.run();
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        'Error uploading file to S3',
+        new Error('Error uploading file to S3'),
       );
     });
 

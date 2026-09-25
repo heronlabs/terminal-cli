@@ -60,7 +60,7 @@ describe('Given a CLI command', () => {
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should set exit code 1 when the download fails', async () => {
@@ -80,7 +80,7 @@ describe('Given a CLI command', () => {
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should log error when execSync throws', async () => {
@@ -93,7 +93,7 @@ describe('Given a CLI command', () => {
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        'mariadb restore failed',
+        new Error('mariadb restore failed'),
       );
     });
 
@@ -117,7 +117,7 @@ describe('Given a CLI command', () => {
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        'Error downloading file from S3',
+        new Error('Error downloading file from S3'),
       );
     });
 

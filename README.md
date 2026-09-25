@@ -141,8 +141,15 @@ All configuration comes from environment variables (see [.env.example](./.env.ex
 | `AWS_REGION` | for S3 | AWS region |
 | `AWS_ACCESS_KEY_ID` | for S3 | AWS credentials (or use an instance role) |
 | `AWS_SECRET_ACCESS_KEY` | for S3 | AWS credentials (or use an instance role) |
+| `SENTRY_DSN` | ❌ | Sentry DSN; when set, every `error` log line becomes a Sentry issue (with the exception and stack trace), every log line (info, warn and error) is sent as a Sentry Log, backups send cron check-ins, and bootstrap/command errors are captured. Unset or empty disables Sentry. |
+| `SENTRY_ENVIRONMENT` | ❌ | Sentry environment (default `production`) |
 
 Locally, `pnpm start -- <command>` loads variables from a `.env` file via `dotenv`.
+
+Every backup, scheduled or manual, sends an `in_progress` cron check-in and an
+`ok`/`error` one when it ends to the Sentry monitor slug `terminal-cli-backup`
+(rollups never check in). Create that monitor in Sentry with a schedule that
+matches the template crontab (`0 */12 * * *`).
 
 An unresolvable `DATABASE_URL`, or a missing `AWS_S3_BUCKET_NAME` when S3 is
 used, fails the command with exit code `1`, like any other backup or rollup
@@ -154,6 +161,7 @@ Hexagonal NestJS layering:
 
 ```
 src/
+├── instrument.ts         # Sentry init (imported first by main.ts)
 ├── application/          # CLI surface (nest-commander)
 │   └── cli/
 │       ├── cli-module.ts
@@ -186,7 +194,7 @@ injects). See [`easypanel/README.md`](easypanel/README.md) for deploy steps.
 Local stack for manual testing — `docker-compose.yml` runs the psql + mysql DBs
 (exposed on ports 5434/3307) and the `psql-integration`/`mysql-integration`
 services that run the backup/rollup round-trip inside the prod-shaped
-`integration/{postgres,mysql}/Dockerfile` images:
+`tests-integration/{postgres,mysql}/Dockerfile` images:
 
 ```bash
 docker compose up postgres mysql              # local DBs only
@@ -201,12 +209,12 @@ pnpm test:integration                         # both
 |---|---|
 | Framework | Vitest 4.x (`vitest.config.ts`, SWC transform for decorators) |
 | Test location | `tests/unit/` (mirrors `src/`) |
-| Integration tests | `integration/` — Docker-based round-trip (PostgreSQL + MySQL) |
+| Integration tests | `tests-integration/` — Docker-based round-trip (PostgreSQL + MySQL) |
 | Shared mocks | `tests/__mocks__/create-testing-module.ts` (moq.ts + vitest) |
 | Coverage | v8, 100% lines/functions/branches/statements |
-| Coverage excludes | `**/main.ts`, `**/*.d.ts`, `**/*factory.ts`, `**/types/` |
+| Coverage excludes | `**/main.ts`, `**/instrument.ts`, `**/*.d.ts`, `**/*factory.ts`, `**/types/` |
 | Mutation | Stryker 9.x (`stryker.conf.json`), 100% break threshold |
-| Mutation scope | `src/**/*.ts` excluding `main.ts`, `*.d.ts`, `*factory.ts`, `*-module.ts` |
+| Mutation scope | `src/**/*.ts` excluding `main.ts`, `instrument.ts`, `*.d.ts`, `*factory.ts`, `*-module.ts` |
 
 ```bash
 pnpm test:unit      # vitest run with coverage

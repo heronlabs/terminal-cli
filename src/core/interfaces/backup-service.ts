@@ -1,4 +1,5 @@
 import {Logger} from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import {unlinkSync} from 'fs';
 import {DateTime} from 'luxon';
 
@@ -22,10 +23,29 @@ export abstract class BackupService {
   }
 
   public async run(local: boolean, filename?: string) {
+    const monitorSlug = 'terminal-cli-backup';
+
+    const checkInId = Sentry.captureCheckIn({
+      monitorSlug,
+      status: 'in_progress',
+    });
+
+    const result = await this.backup(local, filename);
+
+    Sentry.captureCheckIn({
+      checkInId,
+      monitorSlug,
+      status: result.ok ? 'ok' : 'error',
+    });
+
+    return result;
+  }
+
+  private async backup(local: boolean, filename?: string) {
     const result = await this.dump(filename);
 
     if (!result.ok) {
-      this.logger.error(result.error.message);
+      this.logger.error(result.error);
       return {ok: false};
     }
 
@@ -41,7 +61,7 @@ export abstract class BackupService {
     this.logger.log('Deleted local backup file');
 
     if (uploadError) {
-      this.logger.error(uploadError.message);
+      this.logger.error(uploadError);
       return {ok: false};
     }
 

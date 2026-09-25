@@ -172,7 +172,7 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should log the restore error message exactly when execSync fails', async () => {
@@ -184,7 +184,9 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(loggerService.error).toHaveBeenCalledWith('psql restore failed');
+      expect(loggerService.error).toHaveBeenCalledWith(
+        new Error('psql restore failed'),
+      );
     });
 
     it('Should return ok true when the restore succeeds', async () => {
@@ -239,7 +241,7 @@ describe('Given a service', () => {
 
       await service.run(filename, false);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should not restore when the download fails', async () => {

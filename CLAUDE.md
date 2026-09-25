@@ -11,9 +11,9 @@ Binary: `hcli` → `bin/src/main.js`. Entry point: `src/main.ts` bootstraps the
 | Command | What it does |
 |---|---|
 | `pnpm build` | `nest build --path tsconfig.bin.json` → `bin/` |
-| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML + shellcheck on `src/**/*.sh` and `integration/**/*.sh` |
+| `pnpm lint:check` | `gts lint` + eslint on JSON/YAML + shellcheck on `src/**/*.sh` and `tests-integration/**/*.sh` |
 | `pnpm lint:fix` | `gts fix` + eslint `--fix` on JSON/YAML + shellcheck (check-only) |
-| `pnpm lint:shell` | shellcheck on `src/**/*.sh` and `integration/**/*.sh` (config: `.shellcheckrc`; scripts are shebang-less by design) |
+| `pnpm lint:shell` | shellcheck on `src/**/*.sh` and `tests-integration/**/*.sh` (config: `.shellcheckrc`; scripts are shebang-less by design) |
 | `pnpm test:unit` | `VITE_CJS_IGNORE_WARNING=true vitest run` |
 | `pnpm test:integration` | Run both PostgreSQL and MySQL round-trip integration tests |
 | `pnpm test:integration:postgres` | `docker compose run --build --rm psql-integration` |
@@ -38,11 +38,25 @@ never deletes the input file. S3 transfers stream
 (`@aws-sdk/lib-storage` `Upload` from `createReadStream`, download piped into
 `createWriteStream`).
 
+Sentry is opt-in via `SENTRY_DSN` (unset or empty ⇒ SDK disabled, no network).
+`src/instrument.ts` (first import of `main.ts`) calls `Sentry.init` from
+`process.env` with `enableLogs` + `pinoIntegration`, so nestjs-pino log lines are
+sent as Sentry Logs, and `error: {levels: ['error']}` turns every `error` line
+into a Sentry issue. The base backup/rollup services report failures only via
+`logger.error(error)` (the Error itself, so nestjs-pino puts it in pino's `err`
+and Sentry gets the exception type/message/stack); `main.ts` `fail` captures
+bootstrap/command errors, and `Sentry.flush(2000)` runs after the app closes.
+Every backup (scheduled or manual) sends an `in_progress` cron check-in to the
+fixed monitor slug `terminal-cli-backup` and an `ok`/`error` one when it ends
+(rollups never check in); the monitor is created in Sentry with the template
+crontab schedule (`0 */12 * * *`).
+
 ## Source Layout
 
 | Path | Role |
 |---|---|
 | `src/main.ts` | Bootstrap — `CommandFactory.runApplication(CliModule)` |
+| `src/instrument.ts` | Sentry early init (errors, pino logs), imported first by `main.ts` |
 | `src/application/cli/` | `cli-module.ts` + `commands/{backup,rollup,version}/` (nest-commander commands + option types) |
 | `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration) |
 | `src/core/services/` | One folder per engine — `{mysql,psql}/` with its backup + rollup services and `.sh` scripts; shared `script-loader-service.ts` at the root |
@@ -67,7 +81,10 @@ never deletes the input file. S3 transfers stream
 Env vars (see `.env.example`): `DATABASE_URL` (a `postgres://`/`mysql://`
 connection URL, or an AWS SSM Parameter Store ARN resolved via
 `@heronlabs/env-ssm`), and for S3 `AWS_S3_BUCKET_NAME`, `AWS_REGION`,
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. `DATABASE_URL` is resolved through an
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; optional `SENTRY_DSN`,
+`SENTRY_ENVIRONMENT` (default `production`), read from
+`process.env` (locally `pnpm start` loads `.env` via dotenv-cli before
+`instrument.ts` runs). `DATABASE_URL` is resolved through an
 injected `SsmConfigService` (env-ssm v2 no longer ships a NestJS module, so
 `EnvironmentModule` provides it via `SsmConfigFactory.make()`) and parsed by the
 async `EnvironmentService.database()`
@@ -79,11 +96,11 @@ subprocesses via env vars.
 | Detail | Value |
 |---|---|
 | Framework | Vitest 4.x (`vitest.config.ts`; default transform handles NestJS decorators) |
-| Test location | `tests/unit/` (mirrors `src/`) |
+| Test location | `tests/unit/` (mirrors `src/`); integration round-trips in `tests-integration/` |
 | Shared mocks | `tests/__mocks__/create-testing-module.ts` (moq.ts + vitest) |
 | Libraries | `@faker-js/faker`, `moq.ts`, `nest-commander-testing` |
-| Coverage | v8, 100% thresholds; excludes `main.ts`, `*.d.ts`, `*factory.ts`, `types/` |
-| Mutation | Stryker 9.x, 100% break; mutates `src/**/*.ts` minus `main.ts`, `*.d.ts`, `*factory.ts`, `*-module.ts` |
+| Coverage | v8, 100% thresholds; excludes `main.ts`, `instrument.ts`, `*.d.ts`, `*factory.ts`, `types/` |
+| Mutation | Stryker 9.x, 100% break; mutates `src/**/*.ts` minus `main.ts`, `instrument.ts`, `*.d.ts`, `*factory.ts`, `*-module.ts` |
 
 ## CI/CD
 
@@ -127,7 +144,7 @@ backups are deployed via `easypanel/` inline-Dockerfile templates
 and run `crond` — see `easypanel/README.md`. `docker-compose.yml` provides the
 local psql/mysql DBs (ports 5434/3307) plus the `psql-integration`/
 `mysql-integration` runner services that execute the backup/rollup round-trip
-integration tests inside the prod-shaped `integration/{postgres,mysql}/Dockerfile`
+integration tests inside the prod-shaped `tests-integration/{postgres,mysql}/Dockerfile`
 images (`docker compose run --build --rm <svc>-integration`).
 
 ## TypeScript

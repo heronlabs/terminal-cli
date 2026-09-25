@@ -1,5 +1,6 @@
 import {Upload} from '@aws-sdk/lib-storage';
 import {faker} from '@faker-js/faker';
+import * as Sentry from '@sentry/node';
 import {execSync} from 'child_process';
 import {rmSync, unlinkSync} from 'fs';
 
@@ -22,6 +23,7 @@ vi.mock('@aws-sdk/lib-storage', () => ({
     },
   ),
 }));
+vi.mock('@sentry/node', () => ({captureCheckIn: vi.fn()}));
 vi.mock('child_process', () => ({execSync: vi.fn()}));
 vi.mock('fs', () => ({
   createReadStream: vi.fn(),
@@ -213,7 +215,7 @@ describe('Given a service', () => {
 
       await service.run(true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should return ok false when dump fails', async () => {
@@ -298,7 +300,7 @@ describe('Given a service', () => {
 
       await service.run(false, filename);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should delete the local backup file when the upload fails', async () => {
@@ -332,7 +334,64 @@ describe('Given a service', () => {
 
       await service.run(true);
 
-      expect(loggerService.error).toHaveBeenCalledWith('pg_dump failed');
+      expect(loggerService.error).toHaveBeenCalledWith(
+        new Error('pg_dump failed'),
+      );
+    });
+  });
+
+  describe('Given a cron monitor', () => {
+    it('Should check in as in progress before the backup', async () => {
+      const monitorSlug = 'terminal-cli-backup';
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true);
+
+      expect(Sentry.captureCheckIn).toHaveBeenNthCalledWith(1, {
+        monitorSlug,
+        status: 'in_progress',
+      });
+    });
+
+    it('Should check in as ok when the backup succeeds', async () => {
+      const monitorSlug = 'terminal-cli-backup';
+      const checkInId = faker.string.uuid();
+
+      vi.mocked(Sentry.captureCheckIn).mockReturnValueOnce(checkInId);
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      await service.run(true);
+
+      expect(Sentry.captureCheckIn).toHaveBeenLastCalledWith({
+        checkInId,
+        monitorSlug,
+        status: 'ok',
+      });
+    });
+
+    it('Should check in as error when the backup fails', async () => {
+      const monitorSlug = 'terminal-cli-backup';
+      const checkInId = faker.string.uuid();
+
+      vi.mocked(Sentry.captureCheckIn).mockReturnValueOnce(checkInId);
+      vi.mocked(execSync).mockImplementationOnce(() => {
+        throw new Error(faker.lorem.word());
+      });
+
+      await service.run(true);
+
+      expect(Sentry.captureCheckIn).toHaveBeenLastCalledWith({
+        checkInId,
+        monitorSlug,
+        status: 'error',
+      });
+    });
+
+    it('Should return the backup result', async () => {
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+
+      expect(await service.run(true)).toEqual({ok: true});
     });
   });
 });

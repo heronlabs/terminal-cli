@@ -172,7 +172,7 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should log the restore error message exactly when execSync fails', async () => {
@@ -185,7 +185,7 @@ describe('Given a service', () => {
       await service.run(filename, true);
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        'mariadb restore failed',
+        new Error('mariadb restore failed'),
       );
     });
 
@@ -241,7 +241,7 @@ describe('Given a service', () => {
 
       await service.run(filename, false);
 
-      expect(loggerService.error).toHaveBeenCalledWith(message);
+      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
     });
 
     it('Should not restore when the download fails', async () => {
