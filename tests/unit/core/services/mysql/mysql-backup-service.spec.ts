@@ -343,6 +343,7 @@ describe('Given a service', () => {
   describe('Given a cron monitor', () => {
     it('Should check in as in progress before the backup', async () => {
       const monitorSlug = 'terminal-cli-backup';
+
       vi.mocked(execSync).mockImplementationOnce(vi.fn());
 
       await service.run(true);
