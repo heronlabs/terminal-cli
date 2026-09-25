@@ -1,3 +1,9 @@
+## v3.1.0 (2026-09-25)
+
+### Features
+
+* feat: add sentry errors, logs and backup check-ins (#49) (0355aa5de75861ca22688e32b0c0a4b7308a85cd)
+
 ## v3.0.1 (2026-09-24)
 
 ### Bug Fixes
