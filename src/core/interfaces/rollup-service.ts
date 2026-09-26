@@ -1,6 +1,7 @@
 import {Logger} from '@nestjs/common';
 import {rmSync, unlinkSync} from 'fs';
 
+import {redact} from '../../infrastructure/log/redact';
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
 export abstract class RollupService {
@@ -26,7 +27,7 @@ export abstract class RollupService {
             filename,
             err: downloadError,
             errorName: downloadError.name,
-            errorMessage: downloadError.message,
+            errorMessage: redact(downloadError.message),
           },
           'rollup.download-failed',
           RollupService.name,
@@ -45,7 +46,7 @@ export abstract class RollupService {
           filename,
           err: result.error,
           errorName: result.error.name,
-          errorMessage: result.error.message,
+          errorMessage: redact(result.error.message),
         },
         'rollup.restore-failed',
         RollupService.name,

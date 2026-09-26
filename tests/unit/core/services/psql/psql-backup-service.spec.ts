@@ -342,6 +342,29 @@ describe('Given a service', () => {
       );
     });
 
+    it('Should redact an email in the logged upload errorMessage', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+      const message = `denied for ${faker.internet.email()}`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+      uploadDone.mockRejectedValueOnce(new Error(message));
+
+      await service.run(false, filename);
+
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'backup.upload-failed',
+          engine: 'postgres',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: 'denied for [redacted]',
+        },
+        'backup.upload-failed',
+        'BackupService',
+      );
+    });
+
     it('Should delete the local backup file when the upload fails', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 

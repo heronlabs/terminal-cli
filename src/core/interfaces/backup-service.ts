@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/node';
 import {unlinkSync} from 'fs';
 import {DateTime} from 'luxon';
 
+import {redact} from '../../infrastructure/log/redact';
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
 export abstract class BackupService {
@@ -53,7 +54,7 @@ export abstract class BackupService {
           engine: this.engine,
           err: result.error,
           errorName: result.error.name,
-          errorMessage: result.error.message,
+          errorMessage: redact(result.error.message),
         },
         'backup.dump-failed',
         BackupService.name,
@@ -88,7 +89,7 @@ export abstract class BackupService {
           filename: result.data.backupFileName,
           err: uploadError,
           errorName: uploadError.name,
-          errorMessage: uploadError.message,
+          errorMessage: redact(uploadError.message),
         },
         'backup.upload-failed',
         BackupService.name,

@@ -42,16 +42,20 @@ Sentry is opt-in via `SENTRY_DSN` (unset or empty ⇒ SDK disabled, no network).
 `src/instrument.ts` (first import of `main.ts`) calls `Sentry.init` from
 `process.env` with `enableLogs` + `pinoIntegration`, so nestjs-pino log lines are
 sent as Sentry Logs, and `error: {levels: ['error']}` turns every `error` line
-into a Sentry issue. Every log call is
+into a Sentry issue. Every backup, rollup and storage log call is
 `this.logger.<level>({logId, ...fields}, logId, Class.name)`: `logId` is a
 stable `<domain>.<event>` (`backup.dump-failed`, `rollup.completed`,
 `storage.upload-completed`), never interpolated, and is also the message;
 nestjs-pino reads the last argument as the context, so the class-name third
-argument is what keeps `logId` as `msg`. Fields are flat camelCase scalars
-(`engine`, `filename`, `version`, `errorName`, `errorMessage`), never a
-connection string or credential. An `error` line adds pino's `err` (the Error
-itself, the only non-scalar) next to `errorName`/`errorMessage`, so Sentry's
-issue keeps the exception type/message/stack; `main.ts` `fail` captures
+argument is what keeps `logId` as `msg`. `hcli version` keeps its
+`Current Version: <version>` line, which is its user-facing output. Fields are
+flat camelCase scalars (`engine`, `filename`, `errorName`, `errorMessage`),
+never a connection string or credential; `errorMessage` goes through
+`redact` (`src/infrastructure/log/redact.ts`), which replaces e-mails and
+letter-and-digit tokens of 24+ characters with `[redacted]`. The shared log
+standard forbids non-scalar attributes, with one pino exception: `err` (the
+Error itself), on `error`-level lines only, because `pinoIntegration` turns it
+into a Sentry issue with the exception type/message/stack; `main.ts` `fail` captures
 bootstrap/command errors, and `Sentry.flush(2000)` runs after the app closes.
 Every backup (scheduled or manual) sends an `in_progress` cron check-in to the
 fixed monitor slug `terminal-cli-backup` and an `ok`/`error` one when it ends
@@ -68,7 +72,7 @@ crontab schedule (`0 */12 * * *`).
 | `src/core/interfaces/` | `BackupService` / `RollupService` abstract base services (own S3 + cleanup orchestration) |
 | `src/core/services/` | One folder per engine — `{mysql,psql}/` with its backup + rollup services and `.sh` scripts; shared `script-loader-service.ts` at the root |
 | `src/infrastructure/environment/` | `EnvironmentService` — typed wrapper over `@nestjs/config` |
-| `src/infrastructure/log/` | `LogModule` — nestjs-pino global logger |
+| `src/infrastructure/log/` | `LogModule` — nestjs-pino global logger; `redact` for logged error messages |
 | `src/infrastructure/storage/` | `S3StorageService` — AWS SDK v3 streamed upload (`@aws-sdk/lib-storage`) / download |
 
 ## Architecture Rules (`pnpm dep:cruise`)

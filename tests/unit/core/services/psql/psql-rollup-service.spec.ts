@@ -289,6 +289,28 @@ describe('Given a service', () => {
       );
     });
 
+    it('Should redact an email in the logged download errorMessage', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+      const message = `denied for ${faker.internet.email()}`;
+
+      s3Service.send.mockRejectedValueOnce(new Error(message));
+
+      await service.run(filename, false);
+
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'rollup.download-failed',
+          engine: 'postgres',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: 'denied for [redacted]',
+        },
+        'rollup.download-failed',
+        'RollupService',
+      );
+    });
+
     it('Should not restore when the download fails', async () => {
       const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
 
