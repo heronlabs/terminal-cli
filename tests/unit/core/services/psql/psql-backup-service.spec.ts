@@ -104,7 +104,13 @@ describe('Given a service', () => {
       await service.run(true, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        `Backup PostgreSQL database successfully! Filename: ${filename}`,
+        {
+          logId: 'backup.dump-completed',
+          engine: 'postgres',
+          filename,
+        },
+        'backup.dump-completed',
+        'PsqlBackupService',
       );
     });
 
@@ -114,11 +120,17 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        expect.stringMatching(
-          new RegExp(
-            `^Backup PostgreSQL database successfully! Filename: ${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
+        {
+          logId: 'backup.dump-completed',
+          engine: 'postgres',
+          filename: expect.stringMatching(
+            new RegExp(
+              `^${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
+            ),
           ),
-        ),
+        },
+        'backup.dump-completed',
+        'PsqlBackupService',
       );
     });
 
@@ -174,7 +186,13 @@ describe('Given a service', () => {
       await service.run(false, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        'Deleted local backup file',
+        {
+          logId: 'backup.local-file-deleted',
+          engine: 'postgres',
+          filename,
+        },
+        'backup.local-file-deleted',
+        'BackupService',
       );
     });
 
@@ -215,7 +233,17 @@ describe('Given a service', () => {
 
       await service.run(true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'backup.dump-failed',
+          engine: 'postgres',
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: message,
+        },
+        'backup.dump-failed',
+        'BackupService',
+      );
     });
 
     it('Should return ok false when dump fails', async () => {
@@ -300,7 +328,41 @@ describe('Given a service', () => {
 
       await service.run(false, filename);
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'backup.upload-failed',
+          engine: 'postgres',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: message,
+        },
+        'backup.upload-failed',
+        'BackupService',
+      );
+    });
+
+    it('Should redact an email in the logged upload errorMessage', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+      const message = `denied for ${faker.internet.email()}`;
+
+      vi.mocked(execSync).mockImplementationOnce(vi.fn());
+      uploadDone.mockRejectedValueOnce(new Error(message));
+
+      await service.run(false, filename);
+
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'backup.upload-failed',
+          engine: 'postgres',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: 'denied for [redacted]',
+        },
+        'backup.upload-failed',
+        'BackupService',
+      );
     });
 
     it('Should delete the local backup file when the upload fails', async () => {
@@ -323,7 +385,13 @@ describe('Given a service', () => {
       await service.run(false, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        'Deleted local backup file',
+        {
+          logId: 'backup.local-file-deleted',
+          engine: 'postgres',
+          filename,
+        },
+        'backup.local-file-deleted',
+        'BackupService',
       );
     });
 
@@ -335,7 +403,15 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        new Error('pg_dump failed'),
+        {
+          logId: 'backup.dump-failed',
+          engine: 'postgres',
+          err: new Error('pg_dump failed'),
+          errorName: 'Error',
+          errorMessage: 'pg_dump failed',
+        },
+        'backup.dump-failed',
+        'BackupService',
       );
     });
   });

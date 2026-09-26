@@ -9,6 +9,8 @@ import {ScriptLoaderService} from '../script-loader-service';
 
 @Injectable()
 export class PsqlBackupService extends BackupService {
+  protected readonly engine = 'postgres' as const;
+
   protected async dump(filename?: string) {
     const db = await this.environmentService.database();
 
@@ -36,7 +38,13 @@ export class PsqlBackupService extends BackupService {
       });
 
       this.logger.log(
-        `Backup PostgreSQL database successfully! Filename: ${backupFileName}`,
+        {
+          logId: 'backup.dump-completed',
+          engine: this.engine,
+          filename: backupFileName,
+        },
+        'backup.dump-completed',
+        PsqlBackupService.name,
       );
 
       return {ok: true as const, data: {backupFileName}};

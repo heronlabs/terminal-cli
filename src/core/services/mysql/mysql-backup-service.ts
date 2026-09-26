@@ -9,6 +9,8 @@ import {ScriptLoaderService} from '../script-loader-service';
 
 @Injectable()
 export class MysqlBackupService extends BackupService {
+  protected readonly engine = 'mysql' as const;
+
   protected async dump(filename?: string) {
     const db = await this.environmentService.database();
 
@@ -36,7 +38,13 @@ export class MysqlBackupService extends BackupService {
       });
 
       this.logger.log(
-        `Backup MySQL database successfully! Filename: ${backupFileName}`,
+        {
+          logId: 'backup.dump-completed',
+          engine: this.engine,
+          filename: backupFileName,
+        },
+        'backup.dump-completed',
+        MysqlBackupService.name,
       );
 
       return {ok: true as const, data: {backupFileName}};

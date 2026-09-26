@@ -94,7 +94,15 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(loggerService.log).toHaveBeenCalledWith(`Restored ${filename}`);
+      expect(loggerService.log).toHaveBeenCalledWith(
+        {
+          logId: 'rollup.completed',
+          engine: 'mysql',
+          filename,
+        },
+        'rollup.completed',
+        'RollupService',
+      );
     });
 
     it('Should not invoke S3 send when local flag is true', async () => {
@@ -138,7 +146,13 @@ describe('Given a service', () => {
       await service.run(filename, false);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        'Deleted downloaded backup file',
+        {
+          logId: 'rollup.downloaded-file-deleted',
+          engine: 'mysql',
+          filename,
+        },
+        'rollup.downloaded-file-deleted',
+        'RollupService',
       );
     });
 
@@ -172,7 +186,18 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'rollup.restore-failed',
+          engine: 'mysql',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: message,
+        },
+        'rollup.restore-failed',
+        'RollupService',
+      );
     });
 
     it('Should log the restore error message exactly when execSync fails', async () => {
@@ -185,7 +210,16 @@ describe('Given a service', () => {
       await service.run(filename, true);
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        new Error('mariadb restore failed'),
+        {
+          logId: 'rollup.restore-failed',
+          engine: 'mysql',
+          filename,
+          err: new Error('mariadb restore failed'),
+          errorName: 'Error',
+          errorMessage: 'mariadb restore failed',
+        },
+        'rollup.restore-failed',
+        'RollupService',
       );
     });
 
@@ -241,7 +275,40 @@ describe('Given a service', () => {
 
       await service.run(filename, false);
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'rollup.download-failed',
+          engine: 'mysql',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: message,
+        },
+        'rollup.download-failed',
+        'RollupService',
+      );
+    });
+
+    it('Should redact an email in the logged download errorMessage', async () => {
+      const filename = `${faker.string.alphanumeric(10)}.sql.gz`;
+      const message = `denied for ${faker.internet.email()}`;
+
+      s3Service.send.mockRejectedValueOnce(new Error(message));
+
+      await service.run(filename, false);
+
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'rollup.download-failed',
+          engine: 'mysql',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: 'denied for [redacted]',
+        },
+        'rollup.download-failed',
+        'RollupService',
+      );
     });
 
     it('Should not restore when the download fails', async () => {
@@ -355,7 +422,13 @@ describe('Given a service', () => {
       await service.run(filename, false);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        'Deleted downloaded backup file',
+        {
+          logId: 'rollup.downloaded-file-deleted',
+          engine: 'mysql',
+          filename,
+        },
+        'rollup.downloaded-file-deleted',
+        'RollupService',
       );
     });
 
@@ -392,9 +465,7 @@ describe('Given a service', () => {
 
       await service.run(filename, true);
 
-      expect(loggerService.log).not.toHaveBeenCalledWith(
-        'Deleted downloaded backup file',
-      );
+      expect(loggerService.log).not.toHaveBeenCalled();
     });
   });
 });

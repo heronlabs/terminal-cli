@@ -8,6 +8,8 @@ import {ScriptLoaderService} from '../script-loader-service';
 
 @Injectable()
 export class PsqlRollupService extends RollupService {
+  protected readonly engine = 'postgres' as const;
+
   protected async restore(backupFileName: string) {
     const db = await this.environmentService.database();
 
