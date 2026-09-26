@@ -6,6 +6,8 @@ import {DateTime} from 'luxon';
 import {S3StorageService} from '../../infrastructure/storage/services/s3-storage-service';
 
 export abstract class BackupService {
+  protected abstract readonly engine: 'postgres' | 'mysql';
+
   protected abstract dump(
     filename?: string,
   ): Promise<
@@ -45,7 +47,17 @@ export abstract class BackupService {
     const result = await this.dump(filename);
 
     if (!result.ok) {
-      this.logger.error(result.error);
+      this.logger.error(
+        {
+          logId: 'backup.dump-failed',
+          engine: this.engine,
+          err: result.error,
+          errorName: result.error.name,
+          errorMessage: result.error.message,
+        },
+        'backup.dump-failed',
+        BackupService.name,
+      );
       return {ok: false};
     }
 
@@ -58,10 +70,29 @@ export abstract class BackupService {
     );
 
     unlinkSync(result.data.backupFileName);
-    this.logger.log('Deleted local backup file');
+    this.logger.log(
+      {
+        logId: 'backup.local-file-deleted',
+        engine: this.engine,
+        filename: result.data.backupFileName,
+      },
+      'backup.local-file-deleted',
+      BackupService.name,
+    );
 
     if (uploadError) {
-      this.logger.error(uploadError);
+      this.logger.error(
+        {
+          logId: 'backup.upload-failed',
+          engine: this.engine,
+          filename: result.data.backupFileName,
+          err: uploadError,
+          errorName: uploadError.name,
+          errorMessage: uploadError.message,
+        },
+        'backup.upload-failed',
+        BackupService.name,
+      );
       return {ok: false};
     }
 

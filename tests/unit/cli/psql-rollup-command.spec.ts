@@ -60,7 +60,18 @@ describe('Given a CLI command', () => {
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'rollup.download-failed',
+          engine: 'postgres',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: message,
+        },
+        'rollup.download-failed',
+        'RollupService',
+      );
     });
 
     it('Should set exit code 1 when the download fails', async () => {
@@ -80,7 +91,18 @@ describe('Given a CLI command', () => {
 
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'rollup.download-failed',
+          engine: 'postgres',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: message,
+        },
+        'rollup.download-failed',
+        'RollupService',
+      );
     });
 
     it('Should log error when execSync throws', async () => {
@@ -93,7 +115,16 @@ describe('Given a CLI command', () => {
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        new Error('psql restore failed'),
+        {
+          logId: 'rollup.restore-failed',
+          engine: 'postgres',
+          filename,
+          err: new Error('psql restore failed'),
+          errorName: 'Error',
+          errorMessage: 'psql restore failed',
+        },
+        'rollup.restore-failed',
+        'RollupService',
       );
     });
 
@@ -117,7 +148,16 @@ describe('Given a CLI command', () => {
       await command.run([], {[RollupOptionsKeys.FILENAME]: filename});
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        new Error('Error downloading file from S3'),
+        {
+          logId: 'rollup.download-failed',
+          engine: 'postgres',
+          filename,
+          err: new Error('Error downloading file from S3'),
+          errorName: 'Error',
+          errorMessage: 'Error downloading file from S3',
+        },
+        'rollup.download-failed',
+        'RollupService',
       );
     });
 

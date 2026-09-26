@@ -104,7 +104,13 @@ describe('Given a service', () => {
       await service.run(true, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        `Backup MySQL database successfully! Filename: ${filename}`,
+        {
+          logId: 'backup.dump-completed',
+          engine: 'mysql',
+          filename,
+        },
+        'backup.dump-completed',
+        'MysqlBackupService',
       );
     });
 
@@ -114,11 +120,17 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        expect.stringMatching(
-          new RegExp(
-            `^Backup MySQL database successfully! Filename: ${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
+        {
+          logId: 'backup.dump-completed',
+          engine: 'mysql',
+          filename: expect.stringMatching(
+            new RegExp(
+              `^${databaseConnection.name}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z\\.sql\\.gz$`,
+            ),
           ),
-        ),
+        },
+        'backup.dump-completed',
+        'MysqlBackupService',
       );
     });
 
@@ -174,7 +186,13 @@ describe('Given a service', () => {
       await service.run(false, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        'Deleted local backup file',
+        {
+          logId: 'backup.local-file-deleted',
+          engine: 'mysql',
+          filename,
+        },
+        'backup.local-file-deleted',
+        'BackupService',
       );
     });
 
@@ -215,7 +233,17 @@ describe('Given a service', () => {
 
       await service.run(true);
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'backup.dump-failed',
+          engine: 'mysql',
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: message,
+        },
+        'backup.dump-failed',
+        'BackupService',
+      );
     });
 
     it('Should return ok false when dump fails', async () => {
@@ -300,7 +328,18 @@ describe('Given a service', () => {
 
       await service.run(false, filename);
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'backup.upload-failed',
+          engine: 'mysql',
+          filename,
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: message,
+        },
+        'backup.upload-failed',
+        'BackupService',
+      );
     });
 
     it('Should delete the local backup file when the upload fails', async () => {
@@ -323,7 +362,13 @@ describe('Given a service', () => {
       await service.run(false, filename);
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        'Deleted local backup file',
+        {
+          logId: 'backup.local-file-deleted',
+          engine: 'mysql',
+          filename,
+        },
+        'backup.local-file-deleted',
+        'BackupService',
       );
     });
 
@@ -335,7 +380,15 @@ describe('Given a service', () => {
       await service.run(true);
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        new Error('mariadb-dump failed'),
+        {
+          logId: 'backup.dump-failed',
+          engine: 'mysql',
+          err: new Error('mariadb-dump failed'),
+          errorName: 'Error',
+          errorMessage: 'mariadb-dump failed',
+        },
+        'backup.dump-failed',
+        'BackupService',
       );
     });
   });

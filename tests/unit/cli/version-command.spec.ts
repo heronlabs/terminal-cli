@@ -20,7 +20,7 @@ describe('Given a CLI command', () => {
   });
 
   describe('Given command version', () => {
-    it('Should log the current version using the exact "Current Version: <version>" format', async () => {
+    it('Should log the current version under the cli.version-printed logId', async () => {
       const version = faker.string.numeric(1);
 
       vi.mocked(readFileSync).mockReturnValueOnce(JSON.stringify({version}));
@@ -28,7 +28,12 @@ describe('Given a CLI command', () => {
       await command.run();
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        `Current Version: ${version}`,
+        {
+          logId: 'cli.version-printed',
+          version,
+        },
+        'cli.version-printed',
+        'VersionCommand',
       );
     });
 

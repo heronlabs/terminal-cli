@@ -42,9 +42,16 @@ Sentry is opt-in via `SENTRY_DSN` (unset or empty ⇒ SDK disabled, no network).
 `src/instrument.ts` (first import of `main.ts`) calls `Sentry.init` from
 `process.env` with `enableLogs` + `pinoIntegration`, so nestjs-pino log lines are
 sent as Sentry Logs, and `error: {levels: ['error']}` turns every `error` line
-into a Sentry issue. The base backup/rollup services report failures only via
-`logger.error(error)` (the Error itself, so nestjs-pino puts it in pino's `err`
-and Sentry gets the exception type/message/stack); `main.ts` `fail` captures
+into a Sentry issue. Every log call is
+`this.logger.<level>({logId, ...fields}, logId, Class.name)`: `logId` is a
+stable `<domain>.<event>` (`backup.dump-failed`, `rollup.completed`,
+`storage.upload-completed`), never interpolated, and is also the message;
+nestjs-pino reads the last argument as the context, so the class-name third
+argument is what keeps `logId` as `msg`. Fields are flat camelCase scalars
+(`engine`, `filename`, `version`, `errorName`, `errorMessage`), never a
+connection string or credential. An `error` line adds pino's `err` (the Error
+itself, the only non-scalar) next to `errorName`/`errorMessage`, so Sentry's
+issue keeps the exception type/message/stack; `main.ts` `fail` captures
 bootstrap/command errors, and `Sentry.flush(2000)` runs after the app closes.
 Every backup (scheduled or manual) sends an `in_progress` cron check-in to the
 fixed monitor slug `terminal-cli-backup` and an `ok`/`error` one when it ends

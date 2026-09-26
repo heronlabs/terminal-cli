@@ -13,7 +13,11 @@ export class VersionCommand extends CommandRunner {
       version: string;
     };
 
-    this.logger.log(`Current Version: ${version}`);
+    this.logger.log(
+      {logId: 'cli.version-printed', version},
+      'cli.version-printed',
+      VersionCommand.name,
+    );
   }
 
   constructor(private readonly logger: Logger) {
