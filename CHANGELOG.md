@@ -1,3 +1,9 @@
+## v3.1.1 (2026-09-28)
+
+### Miscellaneous Chores
+
+* other: one log shape for every Sentry log (#50) (4bcd4db1bba335fe7dcf7ddf4aa1e21f7771f053)
+
 ## v3.1.0 (2026-09-25)
 
 ### Features
