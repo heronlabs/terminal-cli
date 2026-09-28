@@ -10,12 +10,14 @@ import {EnvironmentService} from '../../environment/services/environment-service
 @Injectable()
 export class S3StorageService {
   public async upload(filePath: string, key?: string) {
+    const Key = key ?? filePath;
+
     try {
       const upload = new Upload({
         client: this.s3,
         params: {
           Bucket: this.environmentService.storage.bucketName,
-          Key: key ?? filePath,
+          Key,
           Body: createReadStream(filePath),
           ContentType: 'application/octet-stream',
         },
@@ -23,7 +25,11 @@ export class S3StorageService {
 
       await upload.done();
 
-      this.logger.log('Uploaded file to S3');
+      this.logger.log(
+        {logId: 'storage.upload-completed', filename: Key},
+        'storage.upload-completed',
+        S3StorageService.name,
+      );
 
       return {ok: true};
     } catch (error) {
@@ -46,7 +52,11 @@ export class S3StorageService {
 
       await pipeline(response.Body as Readable, createWriteStream(key));
 
-      this.logger.log('Downloaded file from S3');
+      this.logger.log(
+        {logId: 'storage.download-completed', filename: key},
+        'storage.download-completed',
+        S3StorageService.name,
+      );
 
       return {ok: true};
     } catch (error) {

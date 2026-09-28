@@ -63,7 +63,15 @@ describe('Given a CLI command', () => {
       await command.run();
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        new Error('mariadb-dump failed'),
+        {
+          logId: 'backup.dump-failed',
+          engine: 'mysql',
+          err: new Error('mariadb-dump failed'),
+          errorName: 'Error',
+          errorMessage: 'mariadb-dump failed',
+        },
+        'backup.dump-failed',
+        'BackupService',
       );
     });
 
@@ -86,7 +94,18 @@ describe('Given a CLI command', () => {
 
       await command.run();
 
-      expect(loggerService.error).toHaveBeenCalledWith(new Error(message));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        {
+          logId: 'backup.upload-failed',
+          engine: 'mysql',
+          filename: expect.any(String),
+          err: new Error(message),
+          errorName: 'Error',
+          errorMessage: message,
+        },
+        'backup.upload-failed',
+        'BackupService',
+      );
     });
 
     it('Should set exit code 1 when the upload fails', async () => {
@@ -107,7 +126,16 @@ describe('Given a CLI command', () => {
       await command.run();
 
       expect(loggerService.error).toHaveBeenCalledWith(
-        new Error('Error uploading file to S3'),
+        {
+          logId: 'backup.upload-failed',
+          engine: 'mysql',
+          filename: expect.any(String),
+          err: new Error('Error uploading file to S3'),
+          errorName: 'Error',
+          errorMessage: 'Error uploading file to S3',
+        },
+        'backup.upload-failed',
+        'BackupService',
       );
     });
 
@@ -125,9 +153,13 @@ describe('Given a CLI command', () => {
       await command.run([], {[BackupOptionsKeys.LOCAL]: true});
 
       expect(loggerService.log).toHaveBeenCalledWith(
-        expect.stringMatching(
-          /^Backup MySQL database successfully! Filename: /,
-        ),
+        {
+          logId: 'backup.dump-completed',
+          engine: 'mysql',
+          filename: expect.any(String),
+        },
+        'backup.dump-completed',
+        'MysqlBackupService',
       );
     });
 

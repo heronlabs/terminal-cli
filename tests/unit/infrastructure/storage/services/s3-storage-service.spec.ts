@@ -80,12 +80,19 @@ describe('Given a service', () => {
       );
     });
 
-    it('Should log the exact upload success message', async () => {
+    it('Should log the upload success under the storage.upload-completed logId', async () => {
       const filePath = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       await service.upload(filePath);
 
-      expect(loggerService.log).toHaveBeenCalledWith('Uploaded file to S3');
+      expect(loggerService.log).toHaveBeenCalledWith(
+        {
+          logId: 'storage.upload-completed',
+          filename: filePath,
+        },
+        'storage.upload-completed',
+        'S3StorageService',
+      );
     });
 
     it('Should return ok true when upload succeeds', async () => {
@@ -150,14 +157,21 @@ describe('Given a service', () => {
       );
     });
 
-    it('Should log the exact download success message', async () => {
+    it('Should log the download success under the storage.download-completed logId', async () => {
       const key = `${faker.string.alphanumeric(10)}.sql.gz`;
 
       s3Service.send.mockResolvedValueOnce({Body: {}});
 
       await service.download(key);
 
-      expect(loggerService.log).toHaveBeenCalledWith('Downloaded file from S3');
+      expect(loggerService.log).toHaveBeenCalledWith(
+        {
+          logId: 'storage.download-completed',
+          filename: key,
+        },
+        'storage.download-completed',
+        'S3StorageService',
+      );
     });
 
     it('Should return ok true when download succeeds', async () => {
